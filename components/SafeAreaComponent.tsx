@@ -22,6 +22,7 @@ const SafeAreaComponent: React.FC<SafeProps> = ({style,...props}) => {
             style,
         ]
     }
+    {...props}
     />
   )
 }
