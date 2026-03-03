@@ -1,11 +1,12 @@
 import { View, Text } from 'react-native'
 import React from 'react'
+import SafeAreaComponent from '@/components/SafeAreaComponent'
 
 const welcome = () => {
   return (
-    <View>
-      <Text>welcome</Text>
-    </View>
+    <SafeAreaComponent>
+      
+    </SafeAreaComponent>
   )
 }
 
