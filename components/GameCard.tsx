@@ -1,61 +1,114 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Text, TouchableOpacity, View ,StyleSheet} from "react-native";
+import React, { useRef } from "react";
+import {
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Dimensions,
+  Animated,
+  Image,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-const GameCard = ({ title, desc, icon, color }: any) => {
-    return (
-  <TouchableOpacity style={styles.gameCard}>
-    <View style={[styles.gameIconBox, { backgroundColor: color + '20' }]}>
-      <MaterialCommunityIcons name={icon} size={28} color={color} />
-    </View>
-    <View style={styles.gameTextContent}>
-      <Text style={styles.gameTitle}>{title}</Text>
-      <Text style={styles.gameDesc}>{desc}</Text>
-    </View>
-    <View style={styles.arrowBox}>
-      <Ionicons name="chevron-forward" size={18} color="#5F5F7E" />
-    </View>
-  </TouchableOpacity>
-);
-}
-export default GameCard
+const { width } = Dimensions.get("window");
+
+const GameCard = ({ title, desc, image, onPress }: any) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const pressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const pressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        style={styles.container}
+        activeOpacity={0.9}
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+      >
+       
+        <View style={styles.imageBox}>
+          <Image source={image} style={styles.image} resizeMode="contain" />
+        </View>
+
+      
+        <View style={styles.textArea}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.desc}>{desc}</Text>
+        </View>
+
+      
+        <View style={styles.playButton}>
+          <Ionicons name="play" size={18} color="#fff" />
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+export default GameCard;
+
 const styles = StyleSheet.create({
-  gameIconBox: {
-    width: 55,
-    height: 55,
+  container: {
+    flexDirection: "row",
+    width: width * 0.9,
+    backgroundColor: "#2F2F42",
     borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 12,
+    marginVertical: 8,
+    alignItems: "center",
   },
-   gameCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2A2A40',
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 24,
-    marginBottom: 12,
+
+  imageBox: {
+    width: 90,
+    height: 75,
+    borderRadius: 14,
+    backgroundColor: "#3F3F5F",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
   },
-   gameTextContent: {
+
+  image: {
+    width: 70,
+    height: 70,
+  },
+
+  textArea: {
     flex: 1,
-    marginLeft: 15,
   },
-  gameTitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
+
+  title: {
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    color: "#fff",
   },
-  gameDesc: {
-    fontSize: 12,
-    color: '#B0B0C0',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
+
+  desc: {
+    fontSize: 13,
+    color: "#ccc",
+    fontFamily: "Poppins-Regular",
+    marginTop: 4,
   },
-  arrowBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: '#3F3F5F',
-    justifyContent: 'center',
-    alignItems: 'center',
+
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#0286FF",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -6,6 +6,7 @@ import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { useAuthStore } from '@/store/authStore';
 import { loginChild } from '@/services/authApi';
 import { images } from '@/const';
+import { router } from 'expo-router';
 
 
 const Login = () => {
@@ -20,7 +21,7 @@ const Login = () => {
       setLoading(true);
       const data = await loginChild(username, password);
       await login(data);
-
+      router.replace('/(root)/(tabs)/home');
       
     } catch (error: any) {
       Alert.alert('Login Failed', error.message || 'Something went wrong');

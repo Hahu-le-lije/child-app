@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import GameCard from '@/components/GameCard';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
 import HeroCard from '@/components/HeroCard';
-import { categories } from '@/const';
+import { categories, images } from '@/const';
 
 const { width } = Dimensions.get('window');
 
@@ -64,22 +64,19 @@ const Home = () => {
         <GameCard 
           title="Pic-to-Word Match" 
           desc="Learn vocabulary with pictures" 
-          icon="image-multiple" 
-          color="#FFD93D" 
+          image={images.F2I} 
         />
 
         <GameCard 
           title="Sentence Builder" 
           desc="Connect words to make sense" 
-          icon="segment" 
-          color="#FF8A5B" 
+          image={images.build} 
         />
 
         <GameCard
           title="Story Time Quiz" 
           desc="Read stories and win prizes" 
-          icon="book-open-variant" 
-          color="#F78FB3" 
+          image={images.story}
         />
 
       </ScrollView>

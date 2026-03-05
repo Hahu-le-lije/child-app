@@ -1,10 +1,80 @@
 import Logo from '../assets/images/hahu_logo.png';
+import Write from '../assets/images/Write.png';
+import F2I from '../assets/images/F2I.png';
+import find from '../assets/images/find.png';
+import listen from '../assets/images/listen.png';
+import rearr from '../assets/images/rearr.png';
+import build from '../assets/images/build.png';
+import speak from '../assets/images/speak.png';
+import story from '../assets/images/story.png';
 export const images={
-    Logo
+    Logo,
+    Write,
+    F2I,
+    find,
+    listen,
+    rearr,
+    build,
+    speak,
+    story
+
 }
 export const categories = [
   { id: "1", name: "Trace", icon: "fountain-pen-tip", color: "#FF6B6B" },
   { id: "2", name: "Match", icon: "puzzle", color: "#4ECDC4" },
   { id: "3", name: "Speak", icon: "microphone", color: "#20BF6B" },
   { id: "4", name: "Build", icon: "toy-brick-outline", color: "#6C5CE7" },
+];
+export const GAMES = [
+  {
+    id: '1',
+    title: 'Fidel Tracing',
+    desc: 'Write letters',
+    image: images.Write,
+    featured: true
+  },
+  {
+    id: '2',
+    title: 'Fidel Match',
+    desc: 'Find pairs',
+    image: images.find
+  },
+  {
+    id: '3',
+    title: 'Pic-to-Word',
+    desc: 'Match images',
+    image: images.F2I
+  },
+  {
+    id: '4',
+    title: 'Word Builder',
+    desc: 'Construct words',
+    image: images.build,
+    featured: true
+  },
+  {
+    id: '5',
+    title: 'Sentence Fun',
+    desc: 'Rearrange words',
+    image: images.rearr
+  },
+  {
+    id: '6',
+    title: 'Listen & Fill',
+    desc: 'Audio quiz',
+    image: images.listen
+  },
+  {
+    id: '7',
+    title: 'Speak Up',
+    desc: 'Practice speaking',
+    image: images.speak,
+    featured: true
+  },
+  {
+    id: '8',
+    title: 'Story Quiz',
+    desc: 'Comprehension',
+    image: images.story
+  }
 ];
