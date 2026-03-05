@@ -3,16 +3,19 @@ import { View, Text, StyleSheet, FlatList } from 'react-native';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
 import GameCard from '@/components/GameCard';
 import { GAMES } from '@/const';
+import { useRouter } from 'expo-router';
 
 
 
 const Play = () => {
+  const router = useRouter();
   const renderGame = ({ item }: { item: typeof GAMES[0] }) => (
     <GameCard
       title={item.title}
       desc={item.desc}
       image={item.image}
       featured={item.featured}
+      onPress={() => router.push(`/(root)/${item.route}`)}
     />
   );
 

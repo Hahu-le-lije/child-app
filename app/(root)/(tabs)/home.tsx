@@ -15,12 +15,14 @@ import GameCard from '@/components/GameCard';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
 import HeroCard from '@/components/HeroCard';
 import { categories, images } from '@/const';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 const Home = () => {
   
   const user = useAuthStore((state) => state.user);
+  const router = useRouter();
 
   return (
     <SafeAreaComponent style={styles.container}>
@@ -61,23 +63,28 @@ const Home = () => {
           <TouchableOpacity><Text style={styles.seeAll}>View All</Text></TouchableOpacity>
         </View>
 
+        <View style={{ flexDirection: 'column', justifyContent: 'space-between',alignItems: 'center'}}>
         <GameCard 
           title="Pic-to-Word Match" 
           desc="Learn vocabulary with pictures" 
           image={images.F2I} 
+          onPress={() => router.push('/(root)/pictoword')}
         />
 
         <GameCard 
           title="Sentence Builder" 
           desc="Connect words to make sense" 
-          image={images.build} 
+          image={images.build}
+          onPress={() => router.push('/(root)/wordbuilder')} 
         />
 
         <GameCard
           title="Story Time Quiz" 
           desc="Read stories and win prizes" 
           image={images.story}
+          onPress={() => router.push('/(root)/storyquiz')}
         />
+        </View>
 
       </ScrollView>
     </SafeAreaComponent>

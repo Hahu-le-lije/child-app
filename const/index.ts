@@ -31,50 +31,58 @@ export const GAMES = [
     title: 'Fidel Tracing',
     desc: 'Write letters',
     image: images.Write,
-    featured: true
+    featured: true,
+    route:"tracing"
   },
   {
     id: '2',
     title: 'Fidel Match',
     desc: 'Find pairs',
-    image: images.find
+    image: images.find,
+    route:"match"
   },
   {
     id: '3',
     title: 'Pic-to-Word',
     desc: 'Match images',
-    image: images.F2I
+    image: images.F2I,
+    route:"pictoword",
   },
   {
     id: '4',
     title: 'Word Builder',
     desc: 'Construct words',
     image: images.build,
-    featured: true
+    featured: true,
+    route:"wordbuilder"
   },
   {
     id: '5',
     title: 'Sentence Fun',
     desc: 'Rearrange words',
-    image: images.rearr
+    image: images.rearr,
+    route:"sentencefun"
   },
   {
     id: '6',
     title: 'Listen & Fill',
     desc: 'Audio quiz',
-    image: images.listen
+    image: images.listen,
+    route:"listenandfill"
   },
   {
     id: '7',
     title: 'Speak Up',
     desc: 'Practice speaking',
     image: images.speak,
-    featured: true
+    featured: true,
+    route:"speakup"
   },
   {
     id: '8',
     title: 'Story Quiz',
     desc: 'Comprehension',
-    image: images.story
+    image: images.story,
+    route:"storyquiz"
   }
 ];
