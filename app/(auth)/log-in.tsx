@@ -6,13 +6,13 @@ import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { useAuthStore } from '@/store/authStore';
 import { loginChild } from '@/services/authApi';
 import { images } from '@/const';
-import { useRouter } from 'expo-router';
+
 
 const Login = () => {
   const { login } = useAuthStore();
-  const [username, setUsername] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const router = useRouter();
+  const [username, setUsername] = React.useState('izzat');
+  const [password, setPassword] = React.useState('123');
+  
 
   const handleLogin = async () => {
     try {
