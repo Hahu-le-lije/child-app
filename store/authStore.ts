@@ -6,6 +6,7 @@ import { refreshToken } from "@/services/authApi";
 interface AuthState {
   user: any;
   loading: boolean;
+  
   setUser: (user: any) => void;
   checkAuthOnStart: () => Promise<void>;
   login: (data: any) => Promise<void>;
@@ -41,10 +42,10 @@ export const useAuthStore=create<AuthState>((set)=>({
         await saveAuthData(
             data.accessToken,
             data.refreshToken,
-            data.child,
+            data.user,
             data.expiresIn
         );
-        set({user:data.child})
+        set({user:data.user})
     },
     logout: async () => {
         await clearAuth();
@@ -59,10 +60,10 @@ export const useAuthStore=create<AuthState>((set)=>({
             await saveAuthData(
                 data.accessToken,
                 data.refreshToken,
-                data.child,
+                data.user,
                 data.expiresIn
             );
-            set({user:data.child})
+            set({user:data.user})
         }
         catch{
             await clearAuth();

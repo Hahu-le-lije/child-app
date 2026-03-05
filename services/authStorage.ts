@@ -9,18 +9,20 @@ export const saveAuthData = async (
   accessToken: string,
   refreshToken: string,
   user: any,
-  expiresIn:number
+  expiresIn: number
 ) => {
-    try{
-  const expiryTime=Date.now()+expiresIn * 1000;
-  await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
-  await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
-}catch(error){
-    console.error("error in saving auth data: ", error);
-}
-};
+  try {
+    const expiryTime = Date.now() + expiresIn * 1000;
 
+    await SecureStore.setItemAsync("child_access_token", accessToken);
+    await SecureStore.setItemAsync("child_refresh_token", refreshToken);
+    await SecureStore.setItemAsync("child_profile", JSON.stringify(user));
+    await SecureStore.setItemAsync("child_token_expiry", expiryTime.toString());
+
+  } catch (error) {
+    console.error("error in saving auth data:", error);
+  }
+};
 export const getAccessToken = async () :Promise<string | null>=> {
     try{
   return await SecureStore.getItemAsync(TOKEN_KEY);

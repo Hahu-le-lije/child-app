@@ -38,6 +38,7 @@ export const loginChild = async (username: string, password: string) => {
     return {
       accessToken: "dummy_access_token_123",
       refreshToken: "dummy_refresh_token_456",
+      expiresIn: 3600,
       user: {
         id: "1",
         username: "izzat",

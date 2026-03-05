@@ -13,15 +13,20 @@ const Login = () => {
   const [username, setUsername] = React.useState('izzat');
   const [password, setPassword] = React.useState('123');
   
-
+  const [loading, setLoading] = React.useState(false);
   const handleLogin = async () => {
+    if(loading) return;
     try {
+      setLoading(true);
       const data = await loginChild(username, password);
       await login(data);
 
       
     } catch (error: any) {
       Alert.alert('Login Failed', error.message || 'Something went wrong');
+    }
+    finally{
+        setLoading(false);
     }
   };
 
@@ -54,9 +59,10 @@ const Login = () => {
           />
 
           <CustomButton
-            title="Log In"
+            title={loading? "Logging  in...":"Login"}
             onPress={handleLogin}
             containerStyle={styles.button}
+            disabled={loading}
           />
         </View>
       </KeyboardAvoidingView>
