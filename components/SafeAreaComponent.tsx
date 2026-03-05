@@ -30,7 +30,7 @@ const SafeAreaComponent: React.FC<SafeProps> = ({style,...props}) => {
 export default SafeAreaComponent
 const styles = StyleSheet.create({
     container:{
-        backgroundColor:"#2D2D44",
+        backgroundColor:"#1F1F39",
         height:"100%",
         width:"100%",
     }
