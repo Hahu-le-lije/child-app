@@ -1,4 +1,4 @@
-import { View, Text ,StyleSheet,TouchableOpacity,Image} from 'react-native'
+import { View, Text ,StyleSheet,TouchableOpacity} from 'react-native'
 import React from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -27,10 +27,6 @@ const HeroCard = () => {
               </TouchableOpacity>
             </View>
 
-            <Image 
-               source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3022/3022221.png' }} 
-               style={styles.heroImage} 
-            />
           </LinearGradient>
         </TouchableOpacity>
     
@@ -98,12 +94,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Bold',
     fontSize: 13,
   },
-  heroImage: {
-    width: 140,
-    height: 140,
-    position: 'absolute',
-    right: -10,
-    bottom: -10,
-    opacity: 0.9,
-  },
+
 })
