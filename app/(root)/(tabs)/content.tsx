@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  Image,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
@@ -17,11 +18,18 @@ import * as FileSystem from 'expo-file-system/legacy';
 const Content = () => {
   const { packs, progress, loadContent, downloadPack } = useContentStore();
   const [storage, setStorage] = React.useState({ free: 0, total: 0 });
+  const [loading, setLoading] = React.useState(true);
 
   useEffect(() => {
-    loadContent();
-    loadStorage();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    await loadContent();
+    await loadStorage();
+    setLoading(false);
+  };
 
   const loadStorage = async () => {
     const deviceStorage = await getDeviceStorage();
@@ -32,13 +40,12 @@ const Content = () => {
     if (progress[pack.id] !== undefined) {
       return { status: "downloading", progress: progress[pack.id] };
     }
-   
+    // Check if downloaded (you'll need to implement this based on your downloadedPacks)
     return { status: "available", progress: undefined };
   };
 
   const checkSavedFiles = async () => {
     try {
-    
       const savedPacks = await getContentPacks();
       
       const fileInfos = await Promise.all(
@@ -63,7 +70,6 @@ const Content = () => {
           }
         })
       );
-      
       
       const fileResults = fileInfos.map(f => 
         `${f.title}: ${f.fileExists ? '✅ File exists' : '❌ Missing'} (${f.fileSize} bytes)`
@@ -141,16 +147,24 @@ const Content = () => {
     
     return (
       <View style={styles.card}>
-        <View style={styles.iconBox}>
-          <MaterialCommunityIcons
-            name="package-variant"
-            size={26}
-            color="#5D5FEF"
-          />
-        </View>
-        <View style={{ flex: 1 }}>
+        {item.thumbnail ? (
+          <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+        ) : (
+          <View style={styles.iconBox}>
+            <MaterialCommunityIcons
+              name="package-variant"
+              size={26}
+              color="#5D5FEF"
+            />
+          </View>
+        )}
+        <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.size}>{item.size} MB</Text>
+          <Text style={styles.description}>{item.description}</Text>
+          <View style={styles.packInfo}>
+            <Text style={styles.size}>{item.size} MB</Text>
+            <Text style={styles.gameType}>{item.gameType}</Text>
+          </View>
           {itemStatus.status === "downloading" && (
             <View style={styles.progressBar}>
               <View
@@ -193,6 +207,16 @@ const Content = () => {
 
   const formatGB = (bytes: number) => (bytes / 1024 / 1024 / 1024).toFixed(1);
 
+  if (loading) {
+    return (
+      <SafeAreaComponent style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.loadingText}>Loading content...</Text>
+        </View>
+      </SafeAreaComponent>
+    );
+  }
+
   return (
     <SafeAreaComponent style={styles.container}>
       <View style={styles.header}>
@@ -202,7 +226,6 @@ const Content = () => {
         </Text>
       </View>
       
-    
       <View style={styles.debugContainer}>
         <TouchableOpacity onPress={checkSavedFiles} style={styles.debugButton}>
           <Text style={styles.debugButtonText}>🔍 Check DB</Text>
@@ -221,12 +244,23 @@ const Content = () => {
         </Text>
       </View>
       
-      <FlatList
-        data={packs}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: 20 }}
-      />
+      {packs.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <MaterialCommunityIcons name="package-variant" size={60} color="#3F3F5F" />
+          <Text style={styles.emptyText}>No content packs available</Text>
+          <TouchableOpacity onPress={loadData} style={styles.retryButton}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={packs}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={{ padding: 20 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaComponent>
   );
 };
@@ -289,17 +323,44 @@ const styles = StyleSheet.create({
     backgroundColor: "#3F3F5F",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+  },
+  thumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
   },
   title: {
     color: "#fff",
     fontSize: 16,
     fontFamily: "Poppins-Bold",
   },
-  size: {
+  description: {
     color: "#aaa",
     fontSize: 12,
     marginTop: 2,
+  },
+  packInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  size: {
+    color: "#5D5FEF",
+    fontSize: 12,
+    backgroundColor: '#3F3F5F',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  gameType: {
+    color: "#20BF6B",
+    fontSize: 12,
+    backgroundColor: '#1F3A2F',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    textTransform: 'capitalize',
   },
   progressBar: {
     height: 6,
@@ -307,10 +368,42 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     marginTop: 8,
     overflow: "hidden",
+    width: '100%',
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#5D5FEF",
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    color: '#aaa',
+    fontSize: 16,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#5D5FEF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
   },
 });
 

@@ -1,83 +1,8 @@
-// import {db} from './db';
-
-// export const initDatabase=()=>{
-//     db.execAsync(`
-//          CREATE TABLE IF NOT EXISTS child_progress (
-//       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       child_id TEXT,
-//       lesson_id TEXT,
-//       score INTEGER,
-//       attempts INTEGER,
-//       completed INTEGER,
-//       created_at TEXT,
-//       synced INTEGER DEFAULT 0
-//     );
-//      CREATE TABLE IF NOT EXISTS game_sessions (
-//       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       child_id TEXT,
-//       game_type TEXT,
-//       score INTEGER,
-//       duration INTEGER,
-//       created_at TEXT,
-//       synced INTEGER DEFAULT 0
-//     );
-//     CREATE TABLE IF NOT EXISTS sync_queue (
-//       id INTEGER PRIMARY KEY AUTOINCREMENT,
-//       type TEXT,
-//       payload TEXT,
-//       created_at TEXT
-//     );
-//     CREATE TABLE IF NOT EXISTS fidels (
-//   id TEXT PRIMARY KEY,
-//   character TEXT,
-//   pronunciation TEXT,
-//   audio_url TEXT,
-//   local_audio TEXT,
-//   difficulty_level INTEGER
-// );
-// CREATE TABLE IF NOT EXISTS words (
-//   id TEXT PRIMARY KEY,
-//   word TEXT,
-//   audio_url TEXT,
-//   local_audio TEXT,
-//   difficulty_level INTEGER
-// );
-// CREATE TABLE IF NOT EXISTS word_images (
-//   id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   word_id TEXT,
-//   image_url TEXT,
-//   local_image TEXT
-// );
-// CREATE TABLE IF NOT EXISTS sentences (
-//   id TEXT PRIMARY KEY,
-//   sentence TEXT,
-//   difficulty_level INTEGER
-// );
-// CREATE TABLE IF NOT EXISTS sentence_words (
-//   id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   sentence_id TEXT,
-//   word TEXT,
-//   position INTEGER
-// );
-// CREATE TABLE IF NOT EXISTS stories (
-//   id TEXT PRIMARY KEY,
-//   title TEXT,
-//   content TEXT,
-//   audio_url TEXT,
-//   local_audio TEXT
-// );
-// CREATE TABLE IF NOT EXISTS story_questions (
-//   id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   story_id TEXT,
-//   question TEXT,
-//   correct_answer TEXT
-// );
-//         `)
-// }
 import { db } from "./db";
 
 export const initDatabase = async () => {
   await db.execAsync(`
+    -- Content packs table (existing)
     CREATE TABLE IF NOT EXISTS content_packs (
       id TEXT PRIMARY KEY,
       title TEXT,
@@ -86,5 +11,201 @@ export const initDatabase = async () => {
       local_path TEXT,
       created_at TEXT
     );
+
+    -- Levels table for game progression
+    CREATE TABLE IF NOT EXISTS levels (
+      id TEXT PRIMARY KEY,
+      game_type TEXT, -- 'tracing', 'matching', 'word_picture', etc.
+      level_number INTEGER,
+      title TEXT,
+      description TEXT,
+      difficulty INTEGER, -- 1-5 for level-based progression
+      unlocked_at_start BOOLEAN DEFAULT 0,
+      required_score INTEGER, -- score needed to unlock next level
+      created_at TEXT
+    );
+
+    -- Fidels (Amharic letters) table
+    CREATE TABLE IF NOT EXISTS fidels (
+      id TEXT PRIMARY KEY,
+      character TEXT, -- The Amharic character
+      pronunciation TEXT,
+      audio_url TEXT,
+      local_audio TEXT,
+      difficulty_level INTEGER, -- Links to level difficulty
+      level_id TEXT, -- Which level this fidel belongs to
+      stroke_order TEXT, -- JSON array of stroke points for tracing
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Words table
+    CREATE TABLE IF NOT EXISTS words (
+      id TEXT PRIMARY KEY,
+      word TEXT,
+      audio_url TEXT,
+      local_audio TEXT,
+      difficulty_level INTEGER,
+      level_id TEXT,
+      fidel_ids TEXT, -- JSON array of fidel IDs that make up this word
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Word images table
+    CREATE TABLE IF NOT EXISTS word_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      word_id TEXT,
+      image_url TEXT,
+      local_image TEXT,
+      is_correct BOOLEAN DEFAULT 0, -- For multiple choice options
+      FOREIGN KEY (word_id) REFERENCES words (id)
+    );
+
+    -- Sentences table
+    CREATE TABLE IF NOT EXISTS sentences (
+      id TEXT PRIMARY KEY,
+      sentence TEXT,
+      difficulty_level INTEGER,
+      level_id TEXT,
+      audio_url TEXT,
+      local_audio TEXT,
+      translation TEXT, -- Optional English translation
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Sentence words (for building games)
+    CREATE TABLE IF NOT EXISTS sentence_words (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sentence_id TEXT,
+      word TEXT,
+      position INTEGER,
+      is_correct_position BOOLEAN DEFAULT 1,
+      FOREIGN KEY (sentence_id) REFERENCES sentences (id)
+    );
+
+    -- Stories table
+    CREATE TABLE IF NOT EXISTS stories (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      content TEXT,
+      audio_url TEXT,
+      local_audio TEXT,
+      level_id TEXT,
+      difficulty_level INTEGER,
+      thumbnail_url TEXT,
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Story questions
+    CREATE TABLE IF NOT EXISTS story_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      story_id TEXT,
+      question TEXT,
+      options TEXT, -- JSON array of options
+      correct_answer TEXT,
+      question_type TEXT, -- 'pre' or 'post' reading
+      position INTEGER,
+      FOREIGN KEY (story_id) REFERENCES stories (id)
+    );
+
+    -- Pronunciation practice items
+    CREATE TABLE IF NOT EXISTS pronunciation_items (
+      id TEXT PRIMARY KEY,
+      content_type TEXT, -- 'fidel', 'word', 'sentence'
+      content_id TEXT,
+      target_text TEXT,
+      audio_url TEXT,
+      local_audio TEXT,
+      level_id TEXT,
+      difficulty_level INTEGER,
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Fill-in-the-blank exercises
+    CREATE TABLE IF NOT EXISTS fill_blank_exercises (
+      id TEXT PRIMARY KEY,
+      sentence_id TEXT,
+      blank_position INTEGER,
+      correct_word TEXT,
+      options TEXT, -- JSON array of word options
+      audio_url TEXT,
+      level_id TEXT,
+      FOREIGN KEY (sentence_id) REFERENCES sentences (id),
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Child progress tracking (existing - enhanced)
+    CREATE TABLE IF NOT EXISTS child_progress (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      child_id TEXT,
+      game_type TEXT,
+      level_id TEXT,
+      score INTEGER,
+      stars_earned INTEGER, -- 1-3 stars based on performance
+      attempts INTEGER,
+      completed INTEGER DEFAULT 0,
+      best_time INTEGER, -- in seconds
+      created_at TEXT,
+      synced INTEGER DEFAULT 0,
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Game sessions (existing - enhanced)
+    CREATE TABLE IF NOT EXISTS game_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      child_id TEXT,
+      game_type TEXT,
+      level_id TEXT,
+      score INTEGER,
+      duration INTEGER,
+      mistakes INTEGER,
+      hints_used INTEGER,
+      completed_successfully BOOLEAN,
+      created_at TEXT,
+      synced INTEGER DEFAULT 0,
+      FOREIGN KEY (level_id) REFERENCES levels (id)
+    );
+
+    -- Sync queue (existing)
+    CREATE TABLE IF NOT EXISTS sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT,
+      payload TEXT,
+      created_at TEXT
+    );
   `);
+};
+export const seedInitialLevels = async () => {
+  // Check if levels exist
+  const existingLevels:any = await db.getAllAsync("SELECT COUNT(*) as count FROM levels");
+  
+  if (existingLevels[0].count === 0) {
+    
+    await db.execAsync(`
+      -- Tracing Game Levels
+      INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+      ('tracing_1', 'tracing', 1, 'Basic Fidels', 'Learn to trace simple Amharic letters', 1, 1, 0),
+      ('tracing_2', 'tracing', 2, 'Complex Fidels', 'Trace more complex Amharic characters', 2, 0, 80),
+      ('tracing_3', 'tracing', 3, 'Fidel Combinations', 'Trace combined fidel forms', 3, 0, 85);
+
+      -- Matching Game Levels
+      INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+      ('matching_1', 'matching', 1, 'Match Sounds', 'Match spoken fidels to written forms', 1, 1, 0),
+      ('matching_2', 'matching', 2, 'Match Words', 'Match spoken words to written forms', 2, 0, 80);
+
+      -- Sample Fidels
+      INSERT INTO fidels (id, character, pronunciation, difficulty_level, level_id, stroke_order) VALUES
+      ('f1', 'ሀ', 'ha', 1, 'tracing_1', '[{"x":10,"y":10},{"x":20,"y":20}]'),
+      ('f2', 'ለ', 'le', 1, 'tracing_1', '[{"x":10,"y":10},{"x":20,"y":20}]');
+
+      -- Sample Words
+      INSERT INTO words (id, word, difficulty_level, level_id, fidel_ids) VALUES
+      ('w1', 'ሀለ', 1, 'matching_1', '["f1","f2"]');
+
+      -- Sample Word Images
+      INSERT INTO word_images (word_id, image_url, is_correct) VALUES
+      ('w1', 'https://example.com/house.jpg', 1),
+      ('w1', 'https://example.com/car.jpg', 0),
+      ('w1', 'https://example.com/tree.jpg', 0);
+    `);
+  }
 };
