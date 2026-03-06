@@ -378,6 +378,304 @@ export const getAvailableContent = async () => {
   };
 };
 
+export type MockPackPayload = {
+  packId: string;
+  gameType: string;
+  levels: Array<{
+    id: string;
+    game_type: string;
+    level_number: number;
+    title: string;
+    description: string;
+    difficulty: number;
+    unlocked_at_start: number;
+    required_score: number;
+  }>;
+  fidels?: Array<{
+    id: string;
+    character: string;
+    pronunciation?: string;
+    audio_url?: string;
+    difficulty_level: number;
+    level_id: string;
+    stroke_order?: string;
+  }>;
+  words?: Array<{
+    id: string;
+    word: string;
+    audio_url?: string;
+    difficulty_level: number;
+    level_id: string;
+    fidel_ids?: string;
+  }>;
+  word_images?: Array<{
+    word_id: string;
+    image_url: string;
+    local_image?: string;
+    is_correct: number;
+  }>;
+  sentences?: Array<{
+    id: string;
+    sentence: string;
+    difficulty_level: number;
+    level_id: string;
+    audio_url?: string;
+    translation?: string;
+  }>;
+  sentence_words?: Array<{
+    sentence_id: string;
+    word: string;
+    position: number;
+    is_correct_position?: number;
+  }>;
+  fill_blank_exercises?: Array<{
+    id: string;
+    sentence_id: string;
+    blank_position: number;
+    correct_word: string;
+    options: string;
+    audio_url?: string;
+    level_id: string;
+  }>;
+  pronunciation_items?: Array<{
+    id: string;
+    content_type: string;
+    content_id: string;
+    target_text: string;
+    audio_url?: string;
+    level_id: string;
+    difficulty_level: number;
+  }>;
+  stories?: Array<{
+    id: string;
+    title: string;
+    content: string;
+    audio_url?: string;
+    level_id: string;
+    difficulty_level: number;
+    thumbnail_url?: string;
+  }>;
+  story_questions?: Array<{
+    story_id: string;
+    question: string;
+    options: string;
+    correct_answer: string;
+    question_type: string;
+    position: number;
+  }>;
+};
+
+/**
+ * Given a pack id (from `contentPacks[].id`), returns the JSON payload that we
+ * "download" for offline play and later import into SQLite.
+ */
+export const getMockContentPackPayload = async (packId: string): Promise<MockPackPayload | null> => {
+  const data = await getAvailableContent();
+  const pack = data.contentPacks.find((p) => p.id === packId);
+  if (!pack) return null;
+
+  const gameType = pack.gameType;
+  const levels = (data.gameLevels as any)[gameType] || [];
+
+  const payload: MockPackPayload = {
+    packId,
+    gameType,
+    levels: levels.map((l: any, idx: number) => ({
+      id: l.id,
+      game_type: l.gameType,
+      level_number: l.levelNumber ?? idx + 1,
+      title: l.title,
+      description: l.description,
+      difficulty: l.difficulty ?? 1,
+      unlocked_at_start: l.levelNumber === 1 ? 1 : 0,
+      required_score: l.unlockRequirements?.starsNeeded ? 80 : 0,
+    })),
+  };
+
+  if (gameType === "tracing") {
+    payload.fidels = [];
+    for (const lvl of levels) {
+      const fidels = lvl?.content?.fidels || [];
+      for (let i = 0; i < fidels.length; i++) {
+        const f = fidels[i];
+        payload.fidels.push({
+          id: f.id,
+          character: f.character,
+          pronunciation: f.pronunciation,
+          audio_url: f.audioUrl,
+          difficulty_level: i + 1,
+          level_id: lvl.id,
+          stroke_order: JSON.stringify([{ x: 10, y: 10 }, { x: 20, y: 20 }]),
+        });
+      }
+    }
+    return payload;
+  }
+
+  if (gameType === "matching") {
+    // Convert pairs into words+images (simple dummy mapping)
+    payload.words = [];
+    payload.word_images = [];
+    for (const lvl of levels) {
+      const pairs = lvl?.content?.pairs || [];
+      for (let i = 0; i < pairs.length; i++) {
+        const p = pairs[i];
+        const wordId = `${lvl.id}_w_${i + 1}`;
+        const wordText = p.word || p.fidel || `Item ${i + 1}`;
+        payload.words.push({
+          id: wordId,
+          word: wordText,
+          audio_url: p.audio,
+          difficulty_level: lvl.difficulty ?? 1,
+          level_id: lvl.id,
+          fidel_ids: "[]",
+        });
+        payload.word_images.push({
+          word_id: wordId,
+          image_url: p.image,
+          is_correct: 1,
+        });
+      }
+    }
+    return payload;
+  }
+
+  if (gameType === "word_picture") {
+    payload.words = [];
+    payload.word_images = [];
+    for (const lvl of levels) {
+      const items = lvl?.content?.items || [];
+      const distractors = lvl?.content?.distractors || [];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const wordId = `${lvl.id}_w_${i + 1}`;
+        payload.words.push({
+          id: wordId,
+          word: it.word,
+          difficulty_level: lvl.difficulty ?? 1,
+          level_id: lvl.id,
+          fidel_ids: "[]",
+        });
+        payload.word_images.push({ word_id: wordId, image_url: it.image, is_correct: 1 });
+        // attach up to 2 distractors per word
+        for (let d = 0; d < Math.min(2, distractors.length); d++) {
+          payload.word_images.push({ word_id: wordId, image_url: distractors[d].image, is_correct: 0 });
+        }
+      }
+    }
+    return payload;
+  }
+
+  if (gameType === "sentence_building") {
+    payload.sentences = [];
+    payload.sentence_words = [];
+    for (const lvl of levels) {
+      const sentences = lvl?.content?.sentences || [];
+      for (const s of sentences) {
+        payload.sentences.push({
+          id: s.id,
+          sentence: s.text,
+          difficulty_level: lvl.difficulty ?? 1,
+          level_id: lvl.id,
+          audio_url: undefined,
+          translation: undefined,
+        });
+        for (let pos = 0; pos < (s.words || []).length; pos++) {
+          payload.sentence_words.push({
+            sentence_id: s.id,
+            word: s.words[pos],
+            position: pos + 1,
+            is_correct_position: 1,
+          });
+        }
+      }
+    }
+    return payload;
+  }
+
+  if (gameType === "fill_blank") {
+    payload.sentences = [];
+    payload.fill_blank_exercises = [];
+    for (const lvl of levels) {
+      const exs = lvl?.content?.exercises || [];
+      for (const ex of exs) {
+        // Create a stable sentence id per exercise
+        const sentenceId = `sent_${ex.id}`;
+        payload.sentences.push({
+          id: sentenceId,
+          sentence: ex.sentence,
+          difficulty_level: lvl.difficulty ?? 1,
+          level_id: lvl.id,
+        });
+        payload.fill_blank_exercises.push({
+          id: ex.id,
+          sentence_id: sentenceId,
+          blank_position: (ex.blankIndex ?? 0) + 1,
+          correct_word: ex.correct,
+          options: JSON.stringify(ex.options || []),
+          audio_url: ex.audioHint,
+          level_id: lvl.id,
+        });
+      }
+    }
+    return payload;
+  }
+
+  if (gameType === "pronunciation") {
+    payload.pronunciation_items = [];
+    for (const lvl of levels) {
+      const items = lvl?.content?.items || [];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        payload.pronunciation_items.push({
+          id: it.id,
+          content_type: "fidel",
+          content_id: it.id,
+          target_text: it.text,
+          audio_url: it.audioUrl,
+          level_id: lvl.id,
+          difficulty_level: i + 1,
+        });
+      }
+    }
+    return payload;
+  }
+
+  if (gameType === "story") {
+    payload.stories = [];
+    payload.story_questions = [];
+    for (const lvl of levels) {
+      const content = lvl?.content;
+      const storyId = content?.storyId || `${lvl.id}_story`;
+      const storyText = (content?.pages || []).map((p: any) => p.text).join("\n\n") || lvl.description;
+      payload.stories.push({
+        id: storyId,
+        title: lvl.title,
+        content: storyText,
+        audio_url: undefined,
+        level_id: lvl.id,
+        difficulty_level: lvl.difficulty ?? 1,
+        thumbnail_url: lvl.thumbnail,
+      });
+      const qs = content?.questions || [];
+      for (let i = 0; i < qs.length; i++) {
+        const q = qs[i];
+        payload.story_questions.push({
+          story_id: storyId,
+          question: q.question,
+          options: JSON.stringify(q.options || []),
+          correct_answer: q.correct,
+          question_type: q.type || "post",
+          position: i + 1,
+        });
+      }
+    }
+    return payload;
+  }
+
+  return payload;
+};
+
 // Helper function to get levels for a specific game
 export const getGameLevels = async (gameType: string) => {
   const data = await getAvailableContent();

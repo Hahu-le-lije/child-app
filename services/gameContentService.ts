@@ -95,6 +95,12 @@ export const getGameContent = async (gameType: string, levelId: string) => {
          WHERE s.level_id = ?`,
         [levelId]
       );
+
+    case 'pronunciation':
+      return await db.getAllAsync(
+        `SELECT * FROM pronunciation_items WHERE level_id = ? ORDER BY difficulty_level`,
+        [levelId]
+      );
       
     default:
       return [];

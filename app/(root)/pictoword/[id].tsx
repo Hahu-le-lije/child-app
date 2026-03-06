@@ -1,14 +1,15 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native'
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { useLocalSearchParams, router } from 'expo-router'
 import GameLayout from '@/components/GameLayout'
-import { getLevelById } from '@/services/contentApi'
+import { getGameContent } from '@/services/gameContentService'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import * as Progress from 'react-native-progress'
 
 const PicToWordGame = () => {
   const { id } = useLocalSearchParams()
-  const [level, setLevel] = useState(null)
+  const levelId = String(id)
+  const [level, setLevel] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [currentItem, setCurrentItem] = useState(0)
   const [score, setScore] = useState(0)
@@ -18,34 +19,62 @@ const PicToWordGame = () => {
   const [lives, setLives] = useState(3)
   const [shuffledOptions, setShuffledOptions] = useState([])
 
+  const loadLevel = useCallback(async () => {
+    setLoading(true)
+    const rows: any[] = await getGameContent('word_picture', levelId)
+
+    // DB query returns words with `images` JSON string (grouped) or rows without images.
+    const items = (rows || []).map((r) => {
+      let images: any[] = []
+      try {
+        images = r.images ? JSON.parse(r.images) : []
+      } catch {
+        images = []
+      }
+      const correct = images.find((i) => i.is_correct === 1) || images[0]
+      return {
+        id: r.id,
+        word: r.word,
+        image: correct?.url,
+        allImages: images.map((i) => ({ word: r.word, image: i.url, correct: i.is_correct === 1 })),
+      }
+    })
+
+    const available = items.filter((i) => !!i.image)
+    const distractors = available.slice(0, 6).map((i) => ({ word: i.word, image: i.image }))
+
+    setLevel({
+      id: levelId,
+      levelNumber: 1,
+      content: {
+        items: available.map((i) => ({ word: i.word, image: i.image })),
+        distractors,
+      },
+    })
+    setLoading(false)
+  }, [levelId])
+
   useEffect(() => {
     loadLevel()
-  }, [id])
+  }, [loadLevel])
 
   useEffect(() => {
     if (level && level.content) {
       shuffleOptionsForCurrentQuestion()
     }
-  }, [currentItem, level])
+  }, [currentItem, level, shuffleOptionsForCurrentQuestion])
 
-  const loadLevel = async () => {
-    setLoading(true)
-    const levelData = await getLevelById('word_picture', id as string)
-    setLevel(levelData)
-    setLoading(false)
-  }
-
-  const shuffleOptionsForCurrentQuestion = () => {
+  const shuffleOptionsForCurrentQuestion = useCallback(() => {
     if (!level || !level.content) return
     
     const currentQuestion = level.content.items[currentItem]
     const correctOption = { word: currentQuestion.word, image: currentQuestion.image, correct: true }
-    const distractors = level.content.distractors.map(d => ({ word: d.word, image: d.image, correct: false }))
+    const distractors = (level.content.distractors || []).map(d => ({ word: d.word, image: d.image, correct: false }))
     
     // Combine and shuffle
     const allOptions = [correctOption, ...distractors].sort(() => Math.random() - 0.5)
     setShuffledOptions(allOptions)
-  }
+  }, [currentItem, level])
 
   const handleAnswer = (selectedWord: string, isCorrect: boolean) => {
     if (feedback.show) return // Prevent multiple answers

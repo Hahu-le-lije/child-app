@@ -1,5 +1,91 @@
 import { db } from "./db";
 
+export async function seedInitialLevels() {
+  // Check if levels exist
+  const existingLevels: any = await db.getAllAsync("SELECT COUNT(*) as count FROM levels");
+
+  if (existingLevels[0].count !== 0) return;
+
+  await db.execAsync(`
+    -- Tracing Game Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('tracing_1', 'tracing', 1, 'Basic Fidels', 'Learn to trace simple Amharic letters', 1, 1, 0),
+    ('tracing_2', 'tracing', 2, 'More Fidels', 'Trace more Amharic characters', 2, 0, 80);
+
+    -- Matching Game Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('matching_1', 'matching', 1, 'Match Sounds', 'Match spoken fidels to written forms', 1, 1, 0),
+    ('matching_2', 'matching', 2, 'Match Words', 'Match spoken words to written forms', 2, 0, 80);
+
+    -- Word to Picture Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('wp_1', 'word_picture', 1, 'Animals', 'Match animal words to pictures', 1, 1, 0),
+    ('wp_2', 'word_picture', 2, 'Food', 'Match food words to pictures', 2, 0, 80);
+
+    -- Sentence Building Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('sb_1', 'sentence_building', 1, 'Simple Sentences', 'Build simple Amharic sentences', 1, 1, 0);
+
+    -- Fill Blank Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('fb_1', 'fill_blank', 1, 'Missing Words', 'Fill in the missing word', 1, 1, 0);
+
+    -- Pronunciation Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('pron_1', 'pronunciation', 1, 'Basics', 'Practice basic fidels', 1, 1, 0);
+
+    -- Story Levels
+    INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
+    ('story_1', 'story', 1, 'Lion and Mouse', 'Read along with questions', 1, 1, 0);
+
+    -- Sample Fidels for tracing
+    INSERT INTO fidels (id, character, pronunciation, difficulty_level, level_id, stroke_order) VALUES
+    ('f1', 'ሀ', 'ha', 1, 'tracing_1', '[{"x":10,"y":10},{"x":20,"y":20}]'),
+    ('f2', 'ለ', 'le', 1, 'tracing_1', '[{"x":10,"y":10},{"x":20,"y":20}]'),
+    ('f3', 'ሐ', 'he', 1, 'tracing_2', '[{"x":10,"y":10},{"x":20,"y":20}]'),
+    ('f4', 'መ', 'me', 1, 'tracing_2', '[{"x":10,"y":10},{"x":20,"y":20}]');
+
+    -- Sample Words
+    INSERT INTO words (id, word, difficulty_level, level_id, fidel_ids) VALUES
+    ('w1', 'ቤት', 1, 'matching_2', '["f1","f2"]'),
+    ('w2', 'ውሃ', 1, 'wp_1', '[]'),
+    ('w3', 'ውሻ', 1, 'wp_1', '[]');
+
+    -- Sample Word Images
+    INSERT INTO word_images (word_id, image_url, is_correct) VALUES
+    ('w2', 'https://images.unsplash.com/photo-1518887578091-1c6a8b4885b2?w=200', 1),
+    ('w2', 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200', 0),
+    ('w2', 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=200', 0),
+    ('w3', 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=200', 1),
+    ('w3', 'https://images.unsplash.com/photo-1518887578091-1c6a8b4885b2?w=200', 0),
+    ('w3', 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=200', 0);
+
+    -- Sample Sentence + words
+    INSERT INTO sentences (id, sentence, difficulty_level, level_id, translation) VALUES
+    ('s1', 'እኔ ቤት ሄድኩ', 1, 'sb_1', 'I went home');
+
+    INSERT INTO sentence_words (sentence_id, word, position) VALUES
+    ('s1', 'እኔ', 1),
+    ('s1', 'ቤት', 2),
+    ('s1', 'ሄድኩ', 3);
+
+    -- Fill blank exercise (links to s1)
+    INSERT INTO fill_blank_exercises (id, sentence_id, blank_position, correct_word, options, level_id) VALUES
+    ('ex1', 's1', 2, 'ቤት', '["ቤት","ውሻ","ውሃ"]', 'fb_1');
+
+    -- Pronunciation practice (uses fidel f1)
+    INSERT INTO pronunciation_items (id, content_type, content_id, target_text, level_id, difficulty_level) VALUES
+    ('p1', 'fidel', 'f1', 'ሀ', 'pron_1', 1);
+
+    -- Story + questions
+    INSERT INTO stories (id, title, content, level_id, difficulty_level, thumbnail_url) VALUES
+    ('lion_mouse', 'The Lion and the Mouse', 'አንድ አንበሳ በጫካ ውስጥ ተኝቶ ነበር።', 'story_1', 1, 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400');
+
+    INSERT INTO story_questions (story_id, question, options, correct_answer, question_type, position) VALUES
+    ('lion_mouse', 'አንበሳን ማን ረዳው?', '["ዝሆን","አይጥ","አህያ"]', 'አይጥ', 'post', 1);
+  `);
+}
+
 export const initDatabase = async () => {
   await db.execAsync(`
     -- Content packs table (existing)
@@ -173,39 +259,7 @@ export const initDatabase = async () => {
       created_at TEXT
     );
   `);
-};
-export const seedInitialLevels = async () => {
-  // Check if levels exist
-  const existingLevels:any = await db.getAllAsync("SELECT COUNT(*) as count FROM levels");
-  
-  if (existingLevels[0].count === 0) {
-    
-    await db.execAsync(`
-      -- Tracing Game Levels
-      INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
-      ('tracing_1', 'tracing', 1, 'Basic Fidels', 'Learn to trace simple Amharic letters', 1, 1, 0),
-      ('tracing_2', 'tracing', 2, 'Complex Fidels', 'Trace more complex Amharic characters', 2, 0, 80),
-      ('tracing_3', 'tracing', 3, 'Fidel Combinations', 'Trace combined fidel forms', 3, 0, 85);
 
-      -- Matching Game Levels
-      INSERT INTO levels (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score) VALUES
-      ('matching_1', 'matching', 1, 'Match Sounds', 'Match spoken fidels to written forms', 1, 1, 0),
-      ('matching_2', 'matching', 2, 'Match Words', 'Match spoken words to written forms', 2, 0, 80);
-
-      -- Sample Fidels
-      INSERT INTO fidels (id, character, pronunciation, difficulty_level, level_id, stroke_order) VALUES
-      ('f1', 'ሀ', 'ha', 1, 'tracing_1', '[{"x":10,"y":10},{"x":20,"y":20}]'),
-      ('f2', 'ለ', 'le', 1, 'tracing_1', '[{"x":10,"y":10},{"x":20,"y":20}]');
-
-      -- Sample Words
-      INSERT INTO words (id, word, difficulty_level, level_id, fidel_ids) VALUES
-      ('w1', 'ሀለ', 1, 'matching_1', '["f1","f2"]');
-
-      -- Sample Word Images
-      INSERT INTO word_images (word_id, image_url, is_correct) VALUES
-      ('w1', 'https://example.com/house.jpg', 1),
-      ('w1', 'https://example.com/car.jpg', 0),
-      ('w1', 'https://example.com/tree.jpg', 0);
-    `);
-  }
+  // Seed minimal offline content so games can run immediately
+  await seedInitialLevels();
 };

@@ -16,20 +16,20 @@ import { getContentPacks } from "@/database/contentRepository";
 import * as FileSystem from 'expo-file-system/legacy'; 
 
 const Content = () => {
-  const { packs, progress, loadContent, downloadPack } = useContentStore();
+  const { packs, progress, downloadedPacks, loadContent, downloadPack } = useContentStore();
   const [storage, setStorage] = React.useState({ free: 0, total: 0 });
   const [loading, setLoading] = React.useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     await loadContent();
     await loadStorage();
     setLoading(false);
-  };
+  }, [loadContent]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadStorage = async () => {
     const deviceStorage = await getDeviceStorage();
@@ -40,16 +40,18 @@ const Content = () => {
     if (progress[pack.id] !== undefined) {
       return { status: "downloading", progress: progress[pack.id] };
     }
-    // Check if downloaded (you'll need to implement this based on your downloadedPacks)
+    if (downloadedPacks?.[pack.id]) {
+      return { status: "downloaded", progress: undefined };
+    }
     return { status: "available", progress: undefined };
   };
 
   const checkSavedFiles = async () => {
     try {
-      const savedPacks = await getContentPacks();
+      const savedPacks = (await getContentPacks()) as any[];
       
       const fileInfos = await Promise.all(
-        savedPacks.map(async (pack) => {
+        savedPacks.map(async (pack: any) => {
           const fileUri = FileSystem.documentDirectory + "content/" + pack.id + ".pack";
           try {
             const fileInfo = await FileSystem.getInfoAsync(fileUri);
@@ -58,14 +60,14 @@ const Content = () => {
               title: pack.title,
               dbPath: pack.local_path,
               fileExists: fileInfo.exists,
-              fileSize: fileInfo.exists ? fileInfo.size : 0,
+              fileSize: fileInfo.exists && "size" in fileInfo ? (fileInfo as any).size : 0,
               filePath: fileUri
             };
           } catch (error) {
             return {
               id: pack.id,
               title: pack.title,
-              error: error.message
+              error: (error as any)?.message
             };
           }
         })
@@ -122,7 +124,7 @@ const Content = () => {
           const info = await FileSystem.getInfoAsync(fileUri);
           return {
             name: filename,
-            size: info.size,
+            size: "size" in info ? (info as any).size : 0,
           };
         })
       );

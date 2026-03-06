@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions }
 import React, { useEffect, useState } from 'react'
 import { router } from 'expo-router'
 import GameLayout from '@/components/GameLayout'
-import { getGameLevels } from '@/services/contentApi'
+import { getLevelsForGame } from '@/services/gameContentService'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 
@@ -19,15 +19,15 @@ const PicToWord = () => {
 
   const loadLevels = async () => {
     setLoading(true)
-    const gameLevels = await getGameLevels('word_picture')
-    // For now, set all levels as unlocked for testing
-    const levelsWithUnlock = gameLevels.map(level => ({
+    const rows = await getLevelsForGame('word_picture')
+    const levelsWithUnlock = rows.map((level: any) => ({
       ...level,
-      unlocked: true, // All levels unlocked for testing
+      unlocked: true,
       completed: false,
-      stars: 0
+      stars: 0,
+      levelNumber: level.level_number,
     }))
-    setLevels(levelsWithUnlock)
+    setLevels(levelsWithUnlock as any)
     setLoading(false)
   }
 

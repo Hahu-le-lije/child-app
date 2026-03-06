@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import CustomButton from '@/components/CustomButton';
 import { images } from '@/const';
 
-const welcome = () => {
+const Welcome = () => {
   const router = useRouter();
 
   return (
@@ -35,7 +35,7 @@ const welcome = () => {
   );
 };
 
-export default welcome;
+export default Welcome;
 
 const styles = StyleSheet.create({
   container: {

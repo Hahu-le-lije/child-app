@@ -22,7 +22,7 @@ export default function RootLayout() {
   useEffect(() => {
     checkAuthOnStart();
     initDatabase();
-  }, []);
+  }, [checkAuthOnStart]);
 
   useEffect(() => {
     if (loaded && !loading) {

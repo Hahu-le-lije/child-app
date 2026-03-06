@@ -2,8 +2,9 @@
 
 import { create } from "zustand";
 import { getAvailableContent, getContentPacksByGame } from "@/services/contentApi";
-import { simulateDownload } from "@/services/contentService";
-import { saveContentPack, getContentPacks } from "@/database/contentRepository";
+import { downloadContentPack } from "@/services/contentService";
+import { saveContentPack, getContentPacks, updateContentStatus } from "@/database/contentRepository";
+import { importContentPackFromFile } from "@/database/contentImporter";
 
 interface ContentState {
   packs: any[]; // For downloadable content packs
@@ -23,17 +24,16 @@ export const useContentStore = create<ContentState>((set, get) => ({
   
   loadContent: async () => {
     try {
-      // Get all content data
+     
       const contentData = await getAvailableContent();
-      
-      // Get downloaded packs from database
+    
       const downloadedPacks = await getContentPacks();
       const downloadedMap = downloadedPacks.reduce((acc: any, pack: any) => {
-        acc[pack.id] = true;
+        acc[pack.id] = pack.status === "downloaded";
         return acc;
       }, {});
       
-      // Store content packs (for download section)
+     
       set({ 
         packs: contentData.contentPacks || [],
         gameLevels: contentData.gameLevels || {},
@@ -48,23 +48,29 @@ export const useContentStore = create<ContentState>((set, get) => ({
   
   downloadPack: async (pack) => {
     try {
-      const uri = await simulateDownload(pack.id, (p) => {
+      await updateContentStatus(pack.id, "downloading").catch(() => {});
+
+      const uri = await downloadContentPack(pack.downloadUrl, pack.id, (p) => {
         set((state) => ({
           progress: { ...state.progress, [pack.id]: p },
         }));
       });
+
+      // Import pack into SQLite so games work offline
+      await importContentPackFromFile(uri);
       
       await saveContentPack(pack.id, pack.title, pack.size, uri);
       
       set((state) => ({
         downloadedPacks: { ...state.downloadedPacks, [pack.id]: true },
-        progress: { ...state.progress, [pack.id]: undefined },
+        progress: Object.fromEntries(Object.entries(state.progress).filter(([k]) => k !== pack.id)),
       }));
       
     } catch (error) {
       console.error("Download failed:", error);
+      await updateContentStatus(pack.id, "failed").catch(() => {});
       set((state) => ({
-        progress: { ...state.progress, [pack.id]: undefined },
+        progress: Object.fromEntries(Object.entries(state.progress).filter(([k]) => k !== pack.id)),
       }));
     }
   },
