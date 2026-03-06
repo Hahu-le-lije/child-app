@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useFonts } from 'expo-font'
 import { useAuthStore } from '@/store/authStore'
 import * as SplashScreen from 'expo-splash-screen';
+import { initDatabase } from '@/database/migrations';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +21,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     checkAuthOnStart();
+    initDatabase();
   }, []);
 
   useEffect(() => {
