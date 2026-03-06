@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "child_access_token";
@@ -14,10 +15,10 @@ export const saveAuthData = async (
   try {
     const expiryTime = Date.now() + expiresIn * 1000;
 
-    await SecureStore.setItemAsync("child_access_token", accessToken);
-    await SecureStore.setItemAsync("child_refresh_token", refreshToken);
-    await SecureStore.setItemAsync("child_profile", JSON.stringify(user));
-    await SecureStore.setItemAsync("child_token_expiry", expiryTime.toString());
+    await setItem(TOKEN_KEY, accessToken);
+    await setItem(REFRESH_KEY, refreshToken);
+    await setItem(USER_KEY, JSON.stringify(user));
+    await setItem(EXPIRY_KEY, expiryTime.toString());
 
   } catch (error) {
     console.error("error in saving auth data:", error);
@@ -25,7 +26,7 @@ export const saveAuthData = async (
 };
 export const getAccessToken = async () :Promise<string | null>=> {
     try{
-  return await SecureStore.getItemAsync(TOKEN_KEY);
+  return await getItem(TOKEN_KEY);
 }catch{
     return null
 }
@@ -33,7 +34,7 @@ export const getAccessToken = async () :Promise<string | null>=> {
 
 export const getRefreshToken = async (): Promise<string | null> => {
     try{
-  return await SecureStore.getItemAsync(REFRESH_KEY);
+  return await getItem(REFRESH_KEY);
 }catch{
     return null
 }
@@ -41,7 +42,7 @@ export const getRefreshToken = async (): Promise<string | null> => {
 
 export const getUser = async (): Promise<any|null> => {
     try{
-  const user = await SecureStore.getItemAsync(USER_KEY);
+  const user = await getItem(USER_KEY);
   return user ? JSON.parse(user) : null;
 }catch{
     return null
@@ -49,7 +50,7 @@ export const getUser = async (): Promise<any|null> => {
 };
 export const isTokenValid = async (): Promise<boolean> => {
   try {
-    const expiry = await SecureStore.getItemAsync(EXPIRY_KEY);
+    const expiry = await getItem(EXPIRY_KEY);
     if (!expiry) return false;
 
     return Date.now() < parseInt(expiry);
@@ -59,11 +60,46 @@ export const isTokenValid = async (): Promise<boolean> => {
 };
 export const clearAuth = async () => {
   try {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await SecureStore.deleteItemAsync(REFRESH_KEY);
-    await SecureStore.deleteItemAsync(USER_KEY);
-    await SecureStore.deleteItemAsync(EXPIRY_KEY);
+    await deleteItem(TOKEN_KEY);
+    await deleteItem(REFRESH_KEY);
+    await deleteItem(USER_KEY);
+    await deleteItem(EXPIRY_KEY);
   } catch (error) {
     console.error("Error clearing auth data:", error);
   }
 };
+
+async function setItem(key: string, value: string) {
+  if (Platform.OS === "web") {
+    try {
+      globalThis?.localStorage?.setItem(key, value);
+    } catch {
+      // ignore
+    }
+    return;
+  }
+  await SecureStore.setItemAsync(key, value);
+}
+
+async function getItem(key: string): Promise<string | null> {
+  if (Platform.OS === "web") {
+    try {
+      return globalThis?.localStorage?.getItem(key) ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return await SecureStore.getItemAsync(key);
+}
+
+async function deleteItem(key: string) {
+  if (Platform.OS === "web") {
+    try {
+      globalThis?.localStorage?.removeItem(key);
+    } catch {
+      // ignore
+    }
+    return;
+  }
+  await SecureStore.deleteItemAsync(key);
+}

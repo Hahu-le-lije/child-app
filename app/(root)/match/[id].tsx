@@ -3,10 +3,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useLocalSearchParams } from 'expo-router'
 import GameLayout from '@/components/GameLayout'
 import { getGameContent } from '@/services/gameContentService'
+import AudioButton from '@/components/AudioButton'
 
 type MatchItem = {
   id: string
   word: string
+  audio_url?: string
   image_url?: string
   is_correct?: number
 }
@@ -18,6 +20,7 @@ const MatchLevel = () => {
   const [rows, setRows] = useState<MatchItem[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
+  const [round, setRound] = useState(0)
 
   useEffect(() => {
     ;(async () => {
@@ -25,26 +28,30 @@ const MatchLevel = () => {
       setRows((data || []) as MatchItem[])
       setSelected(null)
       setMessage('')
+      setRound(0)
     })()
   }, [levelId])
 
-  const options = useMemo(() => {
-    // Rows are a join (word repeated per image). Pick distinct options.
-    const seen = new Set<string>()
-    const out: { key: string; label: string; correct: boolean }[] = []
+  const words = useMemo(() => {
+    const map = new Map<string, MatchItem>()
     for (const r of rows) {
-      const key = `${r.id}:${r.image_url || ''}:${r.is_correct || 0}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push({ key, label: r.word, correct: (r.is_correct || 0) === 1 })
+      if (!map.has(r.id)) map.set(r.id, r)
     }
-    // fallback if no joined images
-    if (out.length === 0) {
-      const uniqueWords = Array.from(new Set(rows.map((r) => r.word))).slice(0, 4)
-      return uniqueWords.map((w, idx) => ({ key: `${w}:${idx}`, label: w, correct: idx === 0 }))
-    }
-    return out.slice(0, 4)
+    return Array.from(map.values())
   }, [rows])
+
+  const currentPrompt = useMemo(() => {
+    if (words.length === 0) return null
+    return words[round % words.length]
+  }, [round, words])
+
+  const options = useMemo(() => {
+    if (!currentPrompt) return []
+    const others = words.filter((w) => w.id !== currentPrompt.id)
+    const shuffledOthers = others.slice().sort(() => Math.random() - 0.5)
+    const candidates = [currentPrompt, ...shuffledOthers.slice(0, 3)].sort(() => Math.random() - 0.5)
+    return candidates.map((w) => ({ key: w.id, label: w.word, correct: w.id === currentPrompt.id }))
+  }, [currentPrompt, words])
 
   const handlePick = (opt: { key: string; label: string; correct: boolean }) => {
     if (selected) return
@@ -53,13 +60,15 @@ const MatchLevel = () => {
     setTimeout(() => {
       setSelected(null)
       setMessage('')
+      if (opt.correct) setRound((r) => r + 1)
     }, 1200)
   }
 
   return (
     <GameLayout title={`Match ${levelId}`}>
       <View style={styles.container}>
-        <Text style={styles.help}>Pick the correct word (demo content)</Text>
+        <Text style={styles.help}>Listen, then tap the correct written form.</Text>
+        <AudioButton uri={currentPrompt?.audio_url} label="Play sound" style={{ marginBottom: 14 }} />
         <View style={styles.grid}>
           {options.map((opt) => (
             <TouchableOpacity

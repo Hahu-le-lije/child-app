@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useLocalSearchParams } from 'expo-router'
 import GameLayout from '@/components/GameLayout'
 import { getGameContent } from '@/services/gameContentService'
+import AudioButton from '@/components/AudioButton'
 
 const StoryQuizLevel = () => {
   const { id } = useLocalSearchParams()
@@ -12,6 +13,7 @@ const StoryQuizLevel = () => {
   const [current, setCurrent] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
+  const [qIndex, setQIndex] = useState(0)
 
   useEffect(() => {
     ;(async () => {
@@ -20,6 +22,7 @@ const StoryQuizLevel = () => {
       setCurrent(0)
       setPicked(null)
       setMsg('')
+      setQIndex(0)
     })()
   }, [levelId])
 
@@ -27,13 +30,14 @@ const StoryQuizLevel = () => {
   const questions = useMemo(() => {
     if (!story?.questions) return []
     try {
-      return JSON.parse(story.questions)
+      const qs = JSON.parse(story.questions)
+      return (qs || []).sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
     } catch {
       return []
     }
   }, [story])
 
-  const q = questions[0]
+  const q = questions[qIndex]
   const opts = useMemo(() => {
     if (!q?.options) return []
     try {
@@ -51,7 +55,13 @@ const StoryQuizLevel = () => {
     setTimeout(() => {
       setPicked(null)
       setMsg('')
-      setCurrent((i) => (i + 1 < stories.length ? i + 1 : 0))
+      if (qIndex + 1 < questions.length) {
+        setQIndex((i) => i + 1)
+      } else {
+        // next story (or loop)
+        setQIndex(0)
+        setCurrent((i) => (i + 1 < stories.length ? i + 1 : 0))
+      }
     }, 1200)
   }
 
@@ -60,8 +70,10 @@ const StoryQuizLevel = () => {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{story?.title || 'Story'}</Text>
         <Text style={styles.story}>{story?.content || '—'}</Text>
+        <AudioButton uri={story?.audio_url} label="Play story audio" style={{ marginTop: 12 }} />
 
         <View style={styles.quizBox}>
+          <Text style={styles.section}>{q?.question_type === 'pre' ? 'Before reading' : 'After reading'}</Text>
           <Text style={styles.qText}>{q?.question || '—'}</Text>
           <View style={styles.opts}>
             {opts.map((o: string) => (
@@ -93,6 +105,7 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 20, fontFamily: 'Poppins-Bold', marginBottom: 10 },
   story: { color: '#ddd', fontSize: 18, fontFamily: 'Abyssinica_SIL', lineHeight: 28 },
   quizBox: { marginTop: 16, backgroundColor: '#2F2F42', borderRadius: 12, padding: 14 },
+  section: { color: '#5D5FEF', fontSize: 12, marginBottom: 6, fontFamily: 'Poppins-Medium' },
   qText: { color: '#fff', fontSize: 16, marginBottom: 10 },
   opts: { gap: 10 },
   opt: { backgroundColor: '#3F3F5F', borderRadius: 10, padding: 12 },

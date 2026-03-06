@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import GameLayout from '@/components/GameLayout'
 import { getGameContent } from '@/services/gameContentService'
+import AudioButton from '@/components/AudioButton'
 
 const ListenAndFillLevel = () => {
   const { id } = useLocalSearchParams()
@@ -52,6 +53,7 @@ const ListenAndFillLevel = () => {
         <View style={styles.box}>
           <Text style={styles.sentence}>{q?.sentence || '—'}</Text>
         </View>
+        <AudioButton uri={q?.audio_url} label="Play audio" style={{ marginBottom: 14 }} />
         <View style={styles.row}>
           {options.map((o: string) => (
             <TouchableOpacity

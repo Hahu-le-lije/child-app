@@ -4,6 +4,7 @@ import GameLayout from '@/components/GameLayout';
 import Svg, { Path } from 'react-native-svg';
 import { useLocalSearchParams } from 'expo-router';
 import { getGameContent } from '@/services/gameContentService';
+import AudioButton from '@/components/AudioButton';
 
 const { width } = Dimensions.get('window');
 
@@ -69,9 +70,12 @@ const TracingGame = () => {
       <View style={styles.container}>
         <Text style={styles.score}>Score: {score}</Text>
         {fidels.length > 0 && (
-          <Text style={styles.fidelText}>
-            Trace: {fidels[currentFidel]?.character} ({fidels[currentFidel]?.pronunciation})
-          </Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.fidelText}>
+              Trace: {fidels[currentFidel]?.character} ({fidels[currentFidel]?.pronunciation})
+            </Text>
+            <AudioButton uri={fidels[currentFidel]?.audio_url} label="Listen" style={{ paddingVertical: 8 }} />
+          </View>
         )}
 
         <View style={styles.canvas} {...panResponder.panHandlers}>
@@ -128,6 +132,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 18,
     fontFamily: 'Abyssinica_SIL',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   complete: {
     marginTop: 12,

@@ -89,7 +89,7 @@ export const getGameContent = async (gameType: string, levelId: string) => {
     case 'story':
       return await db.getAllAsync(
         `SELECT s.*, 
-                (SELECT json_group_array(json_object('question', question, 'options', options, 'correct_answer', correct_answer)) 
+                (SELECT json_group_array(json_object('question', question, 'options', options, 'correct_answer', correct_answer, 'question_type', question_type, 'position', position)) 
                  FROM story_questions WHERE story_id = s.id ORDER BY position) as questions
          FROM stories s
          WHERE s.level_id = ?`,
