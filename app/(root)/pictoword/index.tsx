@@ -1,390 +1,600 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Dimensions } from 'react-native'
-import React, { useEffect, useState } from 'react'
-import { router } from 'expo-router'
-import GameLayout from '@/components/GameLayout'
-import { getLevelsForGame } from '@/services/gameContentService'
-import { MaterialCommunityIcons } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+  ListRenderItem,
+} from "react-native";
+import React, { useMemo } from "react";
+import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameLayout from "@/components/GameLayout";
 
-const { width } = Dimensions.get('window')
-const cardWidth = (width - 60) / 2 // 2 columns with padding
+type JsonImage = {
+  id: string;
+  imagelink: string;
+};
+
+type JsonQuestion = {
+  questiontext: string;
+  images: JsonImage[];
+  correctImageId: string;
+};
+
+type JsonLevel = Record<string, JsonQuestion>;
+
+type PictureToWordJson = {
+  contents: {
+    "picture to word": {
+      levels: Record<string, JsonLevel>;
+    };
+  };
+};
+
+type LevelCard = {
+  id: string;
+  title: string;
+  subtitle: string;
+  questionCount: number;
+  thumbnail: string;
+  difficulty: "easy" | "medium" | "hard";
+};
+
+const PICTURE_TO_WORD_CONTENT: PictureToWordJson = {
+  contents: {
+    "picture to word": {
+      levels: {
+        level_1: {
+          question1: {
+            questiontext: "Dog",
+            images: [
+              {
+                id: "dog",
+                imagelink:
+                  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700",
+              },
+              {
+                id: "cat",
+                imagelink:
+                  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=700",
+              },
+              {
+                id: "cow",
+                imagelink:
+                  "https://images.unsplash.com/photo-1570042225831-d98af757d2f3?w=700",
+              },
+              {
+                id: "horse",
+                imagelink:
+                  "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=700",
+              },
+            ],
+            correctImageId: "dog",
+          },
+          question2: {
+            questiontext: "Cat",
+            images: [
+              {
+                id: "cat",
+                imagelink:
+                  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=700",
+              },
+              {
+                id: "dog",
+                imagelink:
+                  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700",
+              },
+              {
+                id: "cow",
+                imagelink:
+                  "https://images.unsplash.com/photo-1570042225831-d98af757d2f3?w=700",
+              },
+              {
+                id: "hen",
+                imagelink:
+                  "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=700",
+              },
+            ],
+            correctImageId: "cat",
+          },
+          question3: {
+            questiontext: "Cow",
+            images: [
+              {
+                id: "cow",
+                imagelink:
+                  "https://images.unsplash.com/photo-1570042225831-d98af757d2f3?w=700",
+              },
+              {
+                id: "dog",
+                imagelink:
+                  "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=700",
+              },
+              {
+                id: "cat",
+                imagelink:
+                  "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=700",
+              },
+              {
+                id: "horse",
+                imagelink:
+                  "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=700",
+              },
+            ],
+            correctImageId: "cow",
+          },
+        },
+        level_2: {
+          question1: {
+            questiontext: "Apple",
+            images: [
+              {
+                id: "apple",
+                imagelink:
+                  "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=700",
+              },
+              {
+                id: "banana",
+                imagelink:
+                  "https://images.unsplash.com/photo-1574226516831-e1dff420e37f?w=700",
+              },
+              {
+                id: "bread",
+                imagelink:
+                  "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=700",
+              },
+              {
+                id: "milk",
+                imagelink:
+                  "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=700",
+              },
+            ],
+            correctImageId: "apple",
+          },
+          question2: {
+            questiontext: "Banana",
+            images: [
+              {
+                id: "banana",
+                imagelink:
+                  "https://images.unsplash.com/photo-1574226516831-e1dff420e37f?w=700",
+              },
+              {
+                id: "apple",
+                imagelink:
+                  "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=700",
+              },
+              {
+                id: "milk",
+                imagelink:
+                  "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=700",
+              },
+              {
+                id: "bread",
+                imagelink:
+                  "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=700",
+              },
+            ],
+            correctImageId: "banana",
+          },
+          question3: {
+            questiontext: "Milk",
+            images: [
+              {
+                id: "milk",
+                imagelink:
+                  "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=700",
+              },
+              {
+                id: "bread",
+                imagelink:
+                  "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=700",
+              },
+              {
+                id: "apple",
+                imagelink:
+                  "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=700",
+              },
+              {
+                id: "banana",
+                imagelink:
+                  "https://images.unsplash.com/photo-1574226516831-e1dff420e37f?w=700",
+              },
+            ],
+            correctImageId: "milk",
+          },
+        },
+        level_3: {
+          question1: {
+            questiontext: "Book",
+            images: [
+              {
+                id: "book",
+                imagelink:
+                  "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=700",
+              },
+              {
+                id: "chair",
+                imagelink:
+                  "https://images.unsplash.com/photo-1516455207990-7a41ce80f7ee?w=700",
+              },
+              {
+                id: "house",
+                imagelink:
+                  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=700",
+              },
+              {
+                id: "water",
+                imagelink:
+                  "https://images.unsplash.com/photo-1518887578091-1c6a8b4885b2?w=700",
+              },
+            ],
+            correctImageId: "book",
+          },
+          question2: {
+            questiontext: "Chair",
+            images: [
+              {
+                id: "chair",
+                imagelink:
+                  "https://images.unsplash.com/photo-1516455207990-7a41ce80f7ee?w=700",
+              },
+              {
+                id: "book",
+                imagelink:
+                  "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=700",
+              },
+              {
+                id: "house",
+                imagelink:
+                  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=700",
+              },
+              {
+                id: "water",
+                imagelink:
+                  "https://images.unsplash.com/photo-1518887578091-1c6a8b4885b2?w=700",
+              },
+            ],
+            correctImageId: "chair",
+          },
+          question3: {
+            questiontext: "House",
+            images: [
+              {
+                id: "house",
+                imagelink:
+                  "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=700",
+              },
+              {
+                id: "book",
+                imagelink:
+                  "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=700",
+              },
+              {
+                id: "chair",
+                imagelink:
+                  "https://images.unsplash.com/photo-1516455207990-7a41ce80f7ee?w=700",
+              },
+              {
+                id: "water",
+                imagelink:
+                  "https://images.unsplash.com/photo-1518887578091-1c6a8b4885b2?w=700",
+              },
+            ],
+            correctImageId: "house",
+          },
+        },
+      },
+    },
+  },
+};
+
+const { width } = Dimensions.get("window");
+const cardWidth = (width - 54) / 2;
+
+const difficultyGradients = {
+  easy: ["#34C973", "#1FA65E"] as const,
+  medium: ["#FFBF54", "#FF9F35"] as const,
+  hard: ["#FF7D78", "#F35C58"] as const,
+};
+
+const difficultyText = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Challenge",
+};
 
 const PicToWord = () => {
-  const [levels, setLevels] = useState([])
-  const [loading, setLoading] = useState(true)
+  const levels = useMemo<LevelCard[]>(() => {
+    const levelEntries = Object.entries(
+      PICTURE_TO_WORD_CONTENT.contents["picture to word"].levels,
+    );
 
-  useEffect(() => {
-    loadLevels()
-  }, [])
+    return levelEntries.map(([levelId, levelData], index) => {
+      const firstQuestion = Object.values(levelData)[0];
+      const difficulty: LevelCard["difficulty"] =
+        index === 0 ? "easy" : index === 1 ? "medium" : "hard";
 
-  const loadLevels = async () => {
-    setLoading(true)
-    const rows = await getLevelsForGame('word_picture')
-    const levelsWithUnlock = rows.map((level: any) => ({
-      ...level,
-      unlocked: true,
-      completed: false,
-      stars: 0,
-      levelNumber: level.level_number,
-    }))
-    setLevels(levelsWithUnlock as any)
-    setLoading(false)
-  }
+      return {
+        id: levelId,
+        title: `Level ${index + 1}`,
+        subtitle: `Find pictures for words like "${firstQuestion.questiontext}"`,
+        questionCount: Object.keys(levelData).length,
+        thumbnail:
+          firstQuestion.images[0]?.imagelink ??
+          "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=700",
+        difficulty,
+      };
+    });
+  }, []);
 
-  const navigateToLevel = (levelId: string) => {
-    router.push(`/(root)/pictoword/${levelId}`)
-  }
+  const totalQuestions = useMemo(
+    () => levels.reduce((sum, level) => sum + level.questionCount, 0),
+    [levels],
+  );
 
-  const getDifficultyColor = (difficulty: number) => {
-    switch(difficulty) {
-      case 1: return ['#4CAF50', '#45a049'] // Easy - Green
-      case 2: return ['#FFC107', '#ffb300'] // Medium - Yellow
-      case 3: return ['#FF9800', '#fb8c00'] // Hard - Orange
-      case 4: return ['#F44336', '#e53935'] // Very Hard - Red
-      default: return ['#9C27B0', '#8e24aa'] // Expert - Purple
-    }
-  }
-
-  const renderLevelCard = ({ item, index }) => {
-    const colors = getDifficultyColor(item.difficulty)
-    
+  const renderLevelCard: ListRenderItem<LevelCard> = ({ item, index }) => {
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.cardContainer}
-        onPress={() => navigateToLevel(item.id)}
-        activeOpacity={0.7}
+        onPress={() => router.push(`/(root)/pictoword/${item.id}`)}
+        activeOpacity={0.92}
       >
         <LinearGradient
-          colors={['#2F2F42', '#1F1F39']}
+          colors={["#2F355B", "#242B4A"]}
           style={styles.card}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          {/* Level Number Badge */}
-          <View style={styles.levelBadge}>
+          <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+
+          <View style={styles.badgeRow}>
             <LinearGradient
-              colors={colors}
-              style={styles.levelBadgeGradient}
+              colors={difficultyGradients[item.difficulty]}
+              style={styles.difficultyBadge}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Text style={styles.levelBadgeText}>{item.levelNumber}</Text>
+              <Text style={styles.difficultyBadgeText}>
+                {difficultyText[item.difficulty]}
+              </Text>
             </LinearGradient>
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelBadgeText}>L{index + 1}</Text>
+            </View>
           </View>
 
-          {/* Thumbnail */}
-          <Image 
-            source={{ uri: item.thumbnail || 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=400' }} 
-            style={styles.thumbnail}
-          />
-
-          {/* Content */}
           <View style={styles.cardContent}>
-            <Text style={styles.levelTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.levelDescription} numberOfLines={2}>{item.description}</Text>
-            
-            {/* Difficulty Indicator */}
-            <View style={styles.difficultyContainer}>
-              <View style={[styles.difficultyDot, { backgroundColor: colors[0] }]} />
-              <Text style={styles.difficultyText}>
-                {item.difficulty === 1 ? 'Easy' : 
-                 item.difficulty === 2 ? 'Medium' : 
-                 item.difficulty === 3 ? 'Hard' : 
-                 item.difficulty === 4 ? 'Very Hard' : 'Expert'}
-              </Text>
-            </View>
+            <Text style={styles.levelTitle}>{item.title}</Text>
+            <Text style={styles.levelSubtitle} numberOfLines={2}>
+              {item.subtitle}
+            </Text>
 
-            {/* Stars earned (if completed) */}
-            {item.stars > 0 && (
-              <View style={styles.starsContainer}>
-                {[1, 2, 3].map((star) => (
-                  <MaterialCommunityIcons
-                    key={star}
-                    name={star <= item.stars ? "star" : "star-outline"}
-                    size={14}
-                    color="#FFD700"
-                  />
-                ))}
+            <View style={styles.cardFooter}>
+              <View style={styles.questionPill}>
+                <MaterialCommunityIcons
+                  name="image-multiple"
+                  size={14}
+                  color="#A1E5FF"
+                />
+                <Text style={styles.questionPillText}>
+                  {item.questionCount} Questions
+                </Text>
               </View>
-            )}
 
-            {/* Play Button */}
-            <View style={styles.playButton}>
-              <Text style={styles.playButtonText}>Play</Text>
-              <MaterialCommunityIcons name="play" size={16} color="#fff" />
+              <View style={styles.startPill}>
+                <Text style={styles.startPillText}>Start</Text>
+                <MaterialCommunityIcons
+                  name="arrow-right"
+                  size={14}
+                  color="#fff"
+                />
+              </View>
             </View>
           </View>
         </LinearGradient>
       </TouchableOpacity>
-    )
-  }
-
-  if (loading) {
-    return (
-      <GameLayout title="Picture to Word">
-        <View style={styles.centerContent}>
-          <MaterialCommunityIcons name="image-search" size={60} color="#3F3F5F" />
-          <Text style={styles.loadingText}>Loading levels...</Text>
-        </View>
-      </GameLayout>
-    )
-  }
+    );
+  };
 
   return (
     <GameLayout title="Picture to Word">
       <View style={styles.container}>
-        {/* Header */}
         <LinearGradient
-          colors={['#5D5FEF', '#7879F1']}
-          style={styles.header}
+          colors={["#4D72FF", "#62A7FF"]}
+          style={styles.hero}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
         >
-          <View style={styles.headerContent}>
-            <MaterialCommunityIcons name="image-multiple" size={40} color="#fff" />
-            <View style={styles.headerText}>
-              <Text style={styles.headerTitle}>Word to Picture</Text>
-              <Text style={styles.headerSubtitle}>Match words with pictures</Text>
-            </View>
+          <View style={styles.heroTextWrap}>
+            <Text style={styles.heroTitle}>Look, Read, Tap</Text>
+            <Text style={styles.heroSubtitle}>
+              Choose the image that matches each word.
+            </Text>
           </View>
+          <MaterialCommunityIcons name="sticker-emoji" size={44} color="#fff" />
         </LinearGradient>
 
-        {/* Stats Cards */}
         <View style={styles.statsRow}>
-          <LinearGradient
-            colors={['#2F2F42', '#1F1F39']}
-            style={styles.statCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <MaterialCommunityIcons name="layers" size={24} color="#5D5FEF" />
+          <View style={styles.statCard}>
             <Text style={styles.statNumber}>{levels.length}</Text>
-            <Text style={styles.statLabel}>Total Levels</Text>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={['#2F2F42', '#1F1F39']}
-            style={styles.statCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <MaterialCommunityIcons name="star" size={24} color="#FFD700" />
-            <Text style={styles.statNumber}>
-              {levels.filter(l => l.completed).length}
-            </Text>
-            <Text style={styles.statLabel}>Completed</Text>
-          </LinearGradient>
+            <Text style={styles.statLabel}>Levels</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{totalQuestions}</Text>
+            <Text style={styles.statLabel}>Questions</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>JSON</Text>
+            <Text style={styles.statLabel}>Source</Text>
+          </View>
         </View>
 
-        {/* Levels Grid */}
-        {levels.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="image-off" size={80} color="#3F3F5F" />
-            <Text style={styles.emptyText}>No levels available</Text>
-            <TouchableOpacity onPress={loadLevels} style={styles.retryButton}>
-              <LinearGradient
-                colors={['#5D5FEF', '#7879F1']}
-                style={styles.retryGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.retryText}>Retry</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <FlatList
-            data={levels}
-            keyExtractor={(item) => item.id}
-            renderItem={renderLevelCard}
-            numColumns={2}
-            columnWrapperStyle={styles.columnWrapper}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+        <FlatList
+          data={levels}
+          keyExtractor={(item) => item.id}
+          renderItem={renderLevelCard}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     </GameLayout>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
+  hero: {
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
+  heroTextWrap: {
+    flex: 1,
+    paddingRight: 10,
   },
-  headerText: {
-    marginLeft: 15,
+  heroTitle: {
+    color: "#fff",
+    fontFamily: "Poppins-Bold",
+    fontSize: 24,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
+  heroSubtitle: {
+    marginTop: 5,
+    color: "rgba(255,255,255,0.92)",
+    fontFamily: "Poppins-Regular",
+    fontSize: 13,
   },
   statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 20,
-    gap: 15,
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#2F2F42',
+    backgroundColor: "#2D3458",
     borderRadius: 16,
-    padding: 15,
-    alignItems: 'center',
+    paddingVertical: 10,
+    alignItems: "center",
   },
   statNumber: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#fff',
-    marginTop: 8,
+    color: "#fff",
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
   },
   statLabel: {
-    fontSize: 12,
-    color: '#aaa',
+    color: "#B3B8D5",
+    fontSize: 11,
     marginTop: 2,
+    fontFamily: "Poppins-Regular",
   },
   listContent: {
-    padding: 20,
+    paddingBottom: 24,
   },
   columnWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: 15,
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
   cardContainer: {
     width: cardWidth,
   },
   card: {
-    borderRadius: 20,
-    overflow: 'hidden',
+    borderRadius: 18,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: '#3F3F5F',
-  },
-  levelBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 10,
-  },
-  levelBadgeGradient: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  levelBadgeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Poppins-Bold',
+    borderColor: "#47507D",
   },
   thumbnail: {
-    width: '100%',
-    height: 120,
+    width: "100%",
+    height: 95,
+  },
+  badgeRow: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  difficultyBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  difficultyBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontFamily: "Poppins-SemiBold",
+  },
+  levelBadge: {
+    borderRadius: 999,
+    backgroundColor: "rgba(22,24,38,0.8)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  levelBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontFamily: "Poppins-SemiBold",
   },
   cardContent: {
-    padding: 12,
+    padding: 10,
   },
   levelTitle: {
+    color: "#fff",
     fontSize: 14,
-    fontFamily: 'Poppins-Bold',
-    color: '#fff',
-    marginBottom: 4,
+    fontFamily: "Poppins-SemiBold",
   },
-  levelDescription: {
-    fontSize: 10,
-    color: '#aaa',
-    marginBottom: 8,
-    lineHeight: 14,
+  levelSubtitle: {
+    color: "#BCC2E0",
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
+    minHeight: 32,
+    fontFamily: "Poppins-Regular",
   },
-  difficultyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
   },
-  difficultyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  difficultyText: {
-    fontSize: 10,
-    color: '#aaa',
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    gap: 2,
-  },
-  playButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#5D5FEF',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+  questionPill: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
-  playButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Poppins-Medium',
+  questionPillText: {
+    color: "#A1E5FF",
+    fontSize: 10,
+    fontFamily: "Poppins-Medium",
   },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  startPill: {
+    backgroundColor: "#5A76FF",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
   },
-  loadingText: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 10,
+  startPillText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: "Poppins-SemiBold",
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyText: {
-    color: '#aaa',
-    fontSize: 16,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  retryButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  retryGradient: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-  },
-  retryText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-  },
-})
+});
 
-export default PicToWord
+export default PicToWord;
