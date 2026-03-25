@@ -1,0 +1,126 @@
+{
+    "contents":{
+        "story":{
+         "stories":{
+           "storyid":{
+            
+            "title":"",
+            "pagecount":0,
+            "page1":{ 
+                "storytext":"",
+                "keywords":[],
+                "imagelink":""
+            },
+             "page2":{ 
+                "storytext":"",
+                "keywords":[],
+                "imagelink":""
+            },
+            
+            "questions":{
+                "question1":{
+                    "text":"",
+                    "choices":[],
+                    "correctanswer":""
+                }
+            }
+           }
+        }
+           
+        },
+        "picture to word":{
+            "levels":{
+            "levelid":{
+                "question1":{
+                    "questiontext":"",
+                    "images":[
+                        {
+                            "id":"",
+                            "imagelink":""
+                        },
+                        {
+                            "id":"",
+                            "imagelink":""
+                        }
+                    ],
+                    "correctImageId":""
+                }
+            }
+
+        }
+    },
+    "fidel tracing":{
+        "levels":{
+            "levelid":{
+                "question1":{
+                "lettertotrace":"",
+                "lettertoraceimagelink(outline version)":"",
+                "pronoucevoicelink":""
+                },
+                "question2":{
+                "lettertotrace":"",
+                "pronoucevoicelink":""
+                }
+            }
+        }
+    },
+    "word builder":{
+        "levels":{
+            "levelid":{
+                "letters":[],
+                "corrects words":[
+                    {"wordid":"",
+                    "wordtext":""
+                }
+                ],
+                "hints for the corrects words":[
+                    {"wordid":"",
+                    "hinttext":""}
+                ]
+
+            }
+        }
+    },
+    "fill in the blank":{
+        "levels":{
+            "levelid":{
+                "full paragraph":"",
+                "blank space paragraph":"",
+                "voice reading the full paragraph link":"",
+                "choices":[]
+            }
+        }
+    },
+    "pronouncation":{
+        "levels":{
+
+            "levelid":{
+                "question1":{
+                "word":"",
+                "correct voice pronouncation link ":"",
+                "image of the word link":""
+            }}
+        }
+    },
+    "voice/fidel to word game":{
+        "levels":{
+            "levelid":{
+
+                "question1":{
+                "voiceof the word link":"",
+                "word choices":[
+                    {
+                    "wordid":"",
+                    "wordtext":""
+                }
+
+                ],
+                "correctwordid":""
+            }
+
+            }
+        }
+    }
+    }
+
+}
