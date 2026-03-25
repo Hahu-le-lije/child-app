@@ -56,22 +56,16 @@ export const GAMES = [
     featured: true,
     route:"wordbuilder"
   },
+
   {
     id: '5',
-    title: 'Sentence Fun',
-    desc: 'Rearrange words',
-    image: images.rearr,
-    route:"sentencefun"
-  },
-  {
-    id: '6',
     title: 'Listen & Fill',
     desc: 'Audio quiz',
     image: images.listen,
     route:"listenandfill"
   },
   {
-    id: '7',
+    id: '6',
     title: 'Speak Up',
     desc: 'Practice speaking',
     image: images.speak,
@@ -79,7 +73,7 @@ export const GAMES = [
     route:"speakup"
   },
   {
-    id: '8',
+    id: '7',
     title: 'Story Quiz',
     desc: 'Comprehension',
     image: images.story,
