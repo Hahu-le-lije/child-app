@@ -1,88 +1,162 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  Dimensions, 
+  Image,
+  TouchableOpacity 
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import SafeAreaComponent from '@/components/SafeAreaComponent';
+import { GAMES, images } from '@/const';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.75; // Shows a peek of the next card
 
-const Progress = () => {
-  const skills = [
-    { name: 'Tracing (Fidel)', progress: 0.8, color: '#FF6B6B', icon: 'draw' },
-    { name: 'Listening', progress: 0.45, color: '#4ECDC4', icon: 'ear-hearing' },
-    { name: 'Speaking', progress: 0.3, color: '#20BF6B', icon: 'microphone' },
-    { name: 'Vocabulary', progress: 0.6, color: '#6C5CE7', icon: 'cards-outline' },
-  ];
+const TrophyAlbum = () => {
+  // We map your GAMES constant to trophies
+  // Logic: If 'final_score' from your game data > 80, marked as earned
+  const trophies = GAMES.map(game => ({
+    ...game,
+    earned: game.id === '1' || game.id === '3', // Dummy logic for now
+    requirement: game.id === '1' ? "Accuracy > 80%" : "No hints used!"
+  }));
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>My Growth 🚀</Text>
-          <Text style={styles.subtitle}>See how much you have learned!</Text>
-        </View>
+    <SafeAreaComponent style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>My Sticker Book 📖</Text>
+        <Text style={styles.subtitle}>Swipe to see your rewards!</Text>
+      </View>
 
-        {/* Skill Progress Cards */}
-        {skills.map((skill, index) => (
-          <View key={index} style={styles.skillCard}>
-            <View style={styles.skillHeader}>
-              <View style={[styles.iconBg, { backgroundColor: skill.color + '20' }]}>
-                <MaterialCommunityIcons name={skill.icon as any} size={24} color={skill.color} />
-              </View>
-              <Text style={styles.skillName}>{skill.name}</Text>
-              <Text style={styles.skillPercent}>{Math.round(skill.progress * 100)}%</Text>
-            </View>
-            
-            <View style={styles.barContainer}>
-              <View style={[styles.barBg, { backgroundColor: '#3F3F5F' }]}>
-                <LinearGradient
-                  colors={[skill.color, skill.color + '88']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.barFill, { width: `${skill.progress * 100}%` }]}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={CARD_WIDTH + 20} // Snaps to each card
+        decelerationRate="fast"
+        contentContainerStyle={styles.albumScroll}
+      >
+        {trophies.map((item) => (
+          <View key={item.id} style={styles.cardContainer}>
+            <LinearGradient
+              colors={item.earned ? ['#5D5FEF', '#3D5CFF'] : ['#3E3E55', '#2F2F42']}
+              style={styles.stickerCard}
+            >
+              {/* Corner Ribbon for Earned Trophies */}
+              {item.earned && (
+                <View style={styles.ribbon}>
+                  <Text style={styles.ribbonText}>UNLOCKED</Text>
+                </View>
+              )}
+
+              <View style={[styles.imageWrapper, !item.earned && styles.lockedImage]}>
+                <Image 
+                  source={item.image} 
+                  style={styles.stickerImage} 
+                  resizeMode="contain" 
                 />
+                {!item.earned && (
+                  <View style={styles.lockOverlay}>
+                    <MaterialCommunityIcons name="lock" size={50} color="rgba(255,255,255,0.3)" />
+                  </View>
+                )}
               </View>
-            </View>
+
+              <View style={styles.infoArea}>
+                <Text style={styles.stickerTitle}>{item.title}</Text>
+                <Text style={styles.stickerDesc}>
+                  {item.earned ? "Amazing Job! ⭐⭐⭐" : `Challenge: ${item.requirement}`}
+                </Text>
+              </View>
+
+              {item.earned ? (
+                <TouchableOpacity style={styles.collectBtn}>
+                  <Text style={styles.collectText}>SEE BADGE</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.playBtn}>
+                  <Text style={styles.playText}>TRY MISSION</Text>
+                </TouchableOpacity>
+              )}
+            </LinearGradient>
           </View>
         ))}
-
-        {/* Weekly Activity Chart Placeholder */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Weekly Activity</Text>
-          <View style={styles.chartRow}>
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-              <View key={i} style={styles.chartColumn}>
-                <View style={[styles.chartBar, { height: [40, 70, 30, 90, 50, 20, 10][i], backgroundColor: i === 3 ? '#5D5FEF' : '#3F3F5F' }]} />
-                <Text style={styles.chartDay}>{day}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Page Indicators (Dots) */}
+      <View style={styles.indicatorContainer}>
+        {trophies.map((_, i) => (
+          <View key={i} style={[styles.dot, i === 0 && styles.activeDot]} />
+        ))}
+      </View>
+    </SafeAreaComponent>
   );
 };
 
-export default Progress;
+export default TrophyAlbum;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1F1F39' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  header: { marginVertical: 25 },
-  title: { fontSize: 28, fontFamily: 'Poppins-Bold', color: '#FFF' },
-  subtitle: { fontSize: 14, fontFamily: 'Poppins-Regular', color: '#B0B0C0' },
-  skillCard: { backgroundColor: '#2A2A40', padding: 20, borderRadius: 25, marginBottom: 15 },
-  skillHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  iconBg: { padding: 10, borderRadius: 12, marginRight: 12 },
-  skillName: { flex: 1, color: '#FFF', fontFamily: 'Poppins-SemiBold', fontSize: 16 },
-  skillPercent: { color: '#B0B0C0', fontFamily: 'Poppins-Bold' },
-  barContainer: { height: 12, width: '100%' },
-  barBg: { height: '100%', borderRadius: 6, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 6 },
-  chartCard: { backgroundColor: '#2A2A40', padding: 20, borderRadius: 25, marginTop: 10 },
-  chartTitle: { color: '#FFF', fontFamily: 'Poppins-Bold', fontSize: 18, marginBottom: 20 },
-  chartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 100 },
-  chartColumn: { alignItems: 'center' },
-  chartBar: { width: 12, borderRadius: 6 },
-  chartDay: { color: '#8585A6', fontSize: 10, marginTop: 8, fontFamily: 'Poppins-Medium' },
+  header: { paddingHorizontal: 30, marginTop: 20 },
+  title: { fontSize: 32, fontFamily: 'Poppins-Bold', color: '#FFFFFF' },
+  subtitle: { fontSize: 16, color: '#B0B0C0', fontFamily: 'Poppins-Regular' },
+  
+  albumScroll: { paddingLeft: 30, paddingRight: 30, paddingVertical: 40 },
+  cardContainer: {
+    width: CARD_WIDTH,
+    marginRight: 20,
+    height: 420,
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
+  stickerCard: {
+    flex: 1,
+    borderRadius: 40,
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  ribbon: {
+    position: 'absolute',
+    top: 20,
+    right: -30,
+    backgroundColor: '#FFD700',
+    paddingVertical: 5,
+    paddingHorizontal: 40,
+    transform: [{ rotate: '45deg' }],
+  },
+  ribbonText: { color: '#1F1F39', fontSize: 10, fontFamily: 'Poppins-Bold' },
+  imageWrapper: {
+    width: 180,
+    height: 180,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  lockedImage: { opacity: 0.3 },
+  stickerImage: { width: '70%', height: '70%' },
+  lockOverlay: { position: 'absolute' },
+  
+  infoArea: { alignItems: 'center' },
+  stickerTitle: { fontSize: 26, color: 'white', fontFamily: 'Poppins-Bold', textAlign: 'center' },
+  stickerDesc: { fontSize: 14, color: '#E0E0FF', textAlign: 'center', marginTop: 5 },
+  
+  collectBtn: { backgroundColor: '#FFFFFF', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 20 },
+  collectText: { color: '#3D5CFF', fontFamily: 'Poppins-Bold' },
+  playBtn: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 20 },
+  playText: { color: 'white', fontFamily: 'Poppins-Bold' },
+
+  indicatorContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 30 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#3E3E55', marginHorizontal: 4 },
+  activeDot: { backgroundColor: '#3D5CFF', width: 20 },
 });

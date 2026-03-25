@@ -23,6 +23,7 @@ const Home = () => {
 
   return (
     <SafeAreaComponent style={styles.container}>
+      
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
  
