@@ -1,35 +1,124 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { images } from '@/const';
 
-const CustomSidebar = () => {
+const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
-  const handleParentNavigation = (route: string) => {
+  const [parentLock, setParentLock] = useState<{
+    href: Href;
+    prompt: string;
+    answer: number;
+  } | null>(null);
+  const [parentAnswerInput, setParentAnswerInput] = useState('');
 
+  const closeDrawer = useCallback(() => {
+    navigation.closeDrawer();
+  }, [navigation]);
+
+  const navigateAndClose = useCallback(
+    (href: Href) => {
+      closeDrawer();
+      router.push(href);
+    },
+    [closeDrawer, router]
+  );
+
+  const openParentLock = useCallback((href: Href) => {
     const n1 = Math.floor(Math.random() * 9) + 1;
     const n2 = Math.floor(Math.random() * 9) + 1;
-    
-    Alert.prompt(
-      "Parental Lock 🔐",
-      `Please solve: ${n1} + ${n2} = ?`,
-      (input) => {
-        if (parseInt(input) === n1 + n2) {
-          router.push(route as any);
-        } else {
-          Alert.alert("Incorrect", "Access denied.");
-        }
-      }
-    );
-  };
+    setParentAnswerInput('');
+    setParentLock({
+      href,
+      prompt: `${n1} + ${n2} = ?`,
+      answer: n1 + n2,
+    });
+  }, []);
+
+  const submitParentLock = useCallback(() => {
+    if (!parentLock) return;
+    const value = parseInt(parentAnswerInput.trim(), 10);
+    if (value === parentLock.answer) {
+      const target = parentLock.href;
+      setParentLock(null);
+      navigateAndClose(target);
+    } else {
+      Alert.alert('Incorrect', 'Access denied.');
+    }
+  }, [parentAnswerInput, parentLock, navigateAndClose]);
+
+  const handleLogout = useCallback(() => {
+    closeDrawer();
+    logout();
+  }, [closeDrawer, logout]);
 
   return (
     <View style={styles.container}>
+      <Modal
+        visible={parentLock !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setParentLock(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalBackdrop}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setParentLock(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss parental lock"
+          />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Parental lock</Text>
+            <Text style={styles.modalPrompt}>
+              {parentLock ? `Solve: ${parentLock.prompt}` : ''}
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={parentAnswerInput}
+              onChangeText={setParentAnswerInput}
+              keyboardType="number-pad"
+              placeholder="Your answer"
+              placeholderTextColor="#6E6E8D"
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnGhost]}
+                onPress={() => setParentLock(null)}
+              >
+                <Text style={styles.modalBtnGhostText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                onPress={submitParentLock}
+              >
+                <Text style={styles.modalBtnText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <View style={styles.profileHeader}>
         <View style={styles.avatarCircle}>
@@ -49,13 +138,13 @@ const CustomSidebar = () => {
         <SidebarItem 
           icon="controller-classic" 
           label="My Games" 
-          onPress={() => router.push('/home')} 
+          onPress={() => navigateAndClose('/(root)/(tabs)/home')} 
           color="#3D5CFF"
         />
         <SidebarItem 
           icon="book-open-page-variant" 
           label="Sticker Book" 
-          onPress={() => router.push('/progress')} 
+          onPress={() => navigateAndClose('/(root)/(tabs)/progress')} 
           color="#FF6B6B"
         />
         <SidebarItem 
@@ -71,21 +160,21 @@ const CustomSidebar = () => {
         <Text style={styles.parentTitle}>PARENT ZONE</Text>
         
         <SidebarItem 
-          icon="chart-areaspline" 
+          icon="chart-areaspline"
           label="Progress Report" 
-          onPress={() => handleParentNavigation('/parent/report')} 
+          onPress={() => openParentLock('/(root)/(tabs)/profile')} 
           color="#BABBC9"
           isSmall
         />
         <SidebarItem 
           icon="cloud-download" 
           label="Get New Content" 
-          onPress={() => handleParentNavigation('')} 
+          onPress={() => openParentLock('/(root)/(tabs)/content')} 
           color="#BABBC9"
           isSmall
         />
         
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <MaterialCommunityIcons name="logout" size={20} color="#FF6B6B" />
           <Text style={styles.logoutText}>Switch Account</Text>
         </TouchableOpacity>
@@ -127,5 +216,55 @@ const styles = StyleSheet.create({
   parentSection: { borderTopWidth: 1, borderTopColor: '#2F2F42', paddingTop: 20, paddingBottom: 20 },
   parentTitle: { color: '#6E6E8D', fontSize: 12, fontFamily: 'Poppins-Bold', marginBottom: 15, letterSpacing: 1 },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  logoutText: { color: '#FF6B6B', marginLeft: 10, fontFamily: 'Poppins-Medium' }
+  logoutText: { color: '#FF6B6B', marginLeft: 10, fontFamily: 'Poppins-Medium' },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#2F2F42',
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#3D5CFF',
+    zIndex: 1,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins-Bold',
+    marginBottom: 8,
+  },
+  modalPrompt: {
+    color: '#BABBC9',
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
+    marginBottom: 14,
+  },
+  modalInput: {
+    backgroundColor: '#1F1F39',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 18,
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  modalBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+  },
+  modalBtnPrimary: {
+    backgroundColor: '#3D5CFF',
+    marginLeft: 10,
+  },
+  modalBtnGhost: { backgroundColor: 'transparent' },
+  modalBtnText: { color: '#fff', fontFamily: 'Poppins-SemiBold' },
+  modalBtnGhostText: { color: '#BABBC9', fontFamily: 'Poppins-Medium' },
 });

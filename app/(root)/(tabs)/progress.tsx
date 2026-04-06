@@ -9,14 +9,21 @@ import {
   TouchableOpacity 
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
-import { GAMES, images } from '@/const';
+import { GAMES } from '@/const';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75; // Shows a peek of the next card
 
 const TrophyAlbum = () => {
+  const navigation = useNavigation();
+
+  const openDrawer = () => {
+    navigation.dispatch(DrawerActions.openDrawer());
+  };
+
   // We map your GAMES constant to trophies
   // Logic: If 'final_score' from your game data > 80, marked as earned
   const trophies = GAMES.map(game => ({
@@ -28,7 +35,18 @@ const TrophyAlbum = () => {
   return (
     <SafeAreaComponent style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>My Sticker Book 📖</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            onPress={openDrawer}
+            style={styles.menuButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <MaterialCommunityIcons name="menu" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.title}>My Sticker Book 📖</Text>
+        </View>
         <Text style={styles.subtitle}>Swipe to see your rewards!</Text>
       </View>
 
@@ -101,7 +119,14 @@ export default TrophyAlbum;
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1F1F39' },
   header: { paddingHorizontal: 30, marginTop: 20 },
-  title: { fontSize: 32, fontFamily: 'Poppins-Bold', color: '#FFFFFF' },
+  headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  menuButton: { marginRight: 12, padding: 4 },
+  title: {
+    flex: 1,
+    fontSize: 28,
+    fontFamily: 'Poppins-Bold',
+    color: '#FFFFFF',
+  },
   subtitle: { fontSize: 16, color: '#B0B0C0', fontFamily: 'Poppins-Regular' },
   
   albumScroll: { paddingLeft: 30, paddingRight: 30, paddingVertical: 40 },

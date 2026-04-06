@@ -9,6 +9,7 @@ import {
   Image 
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '@/store/authStore';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { categories, GAMES } from '@/const';
@@ -20,6 +21,11 @@ const CARD_WIDTH = (width - 60) / 2;
 const Home = () => {
   const user = useAuthStore((state) => state.user);
   const router = useRouter();
+  const navigation = useNavigation();
+
+  const openDrawer = () => {
+    navigation.dispatch(DrawerActions.openDrawer());
+  };
 
   return (
     <SafeAreaComponent style={styles.container}>
@@ -28,7 +34,16 @@ const Home = () => {
         
  
         <View style={styles.header}>
-          <View>
+          <TouchableOpacity
+            onPress={openDrawer}
+            style={styles.menuButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <MaterialCommunityIcons name="menu" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerTitles}>
             <Text style={styles.greeting}>Hi, {user?.username || 'Hero'}! 🌟</Text>
             <Text style={styles.subGreeting}>Ready for a new mission?</Text>
           </View>
@@ -105,6 +120,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop: 15,
     marginBottom: 20,
+  },
+  menuButton: {
+    marginRight: 12,
+    padding: 4,
+  },
+  headerTitles: {
+    flex: 1,
+    minWidth: 0,
   },
   greeting: { 
     fontSize: 28, 
