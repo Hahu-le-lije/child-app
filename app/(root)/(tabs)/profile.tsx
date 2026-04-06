@@ -9,11 +9,13 @@ import {
   Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons} from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/const';
 
 const Profile = () => {
   const user = useAuthStore((state) => state.user);
@@ -23,39 +25,63 @@ const Profile = () => {
   const [isSoundOn, setIsSoundOn] = useState(true);
   const [imageError, setImageError] = useState(false);
 
+  const navigation = useNavigation();
+
+  const openDrawer = () => {
+    navigation.dispatch(DrawerActions.openDrawer());
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
-    
-        <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <LinearGradient 
-              colors={['#5D5FEF', '#A5A6F6']} 
-              style={styles.avatarGlow} 
-            />
-            <Image source={user?.avatar && !imageError ? { uri:`data:image/png;base64,${user.avatar}`}: require('@/assets/images/F2I.png')} style={styles.mainAvatar} 
-            onError={()=>setImageError(true)}
-            />
-           
-          </View>
-          <Text style={styles.username}>{user?.username || "Super Learner"}</Text>
-        </View>
-
       
+        <View style={styles.header}>
+  <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+    <MaterialCommunityIcons name="menu" size={28} color={COLORS.textPrimary} />
+  </TouchableOpacity>
+
+  <Text style={styles.headerTitle}>Profile</Text>
+
+            <View style={styles.avatarContainer}>
+              <LinearGradient 
+                colors={[COLORS.primary, '#A5A6F6']} 
+                style={styles.avatarGlow} 
+              />
+              <Image 
+                source={
+                  user?.avatar && !imageError
+                    ? { uri: `data:image/png;base64,${user.avatar}` }
+                    : require('@/assets/images/F2I.png')
+                }
+                style={styles.mainAvatar}
+                onError={() => setImageError(true)}
+              />
+            </View>
+
+            <Text style={styles.username}>
+              {user?.username || "Super Learner"}
+            </Text>
+          </View>
+
+        
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="star" size={24} color="#FFD700" />
             <Text style={styles.statValue}>1,240</Text>
             <Text style={styles.statLabel}>Points</Text>
           </View>
+
           <View style={styles.divider} />
+
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="fire" size={24} color="#FF4D4D" />
             <Text style={styles.statValue}>12</Text>
             <Text style={styles.statLabel}>Day Streak</Text>
           </View>
+
           <View style={styles.divider} />
+
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="trophy" size={24} color="#FFD93D" />
             <Text style={styles.statValue}>8</Text>
@@ -63,41 +89,42 @@ const Profile = () => {
           </View>
         </View>
 
-     
-       
-
-      
+        
         <Text style={styles.sectionTitle}>Game Settings</Text>
-        <View style={styles.settingsContainer}>
-      
 
+        <View style={styles.settingsContainer}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <View style={[styles.settingIcon, { backgroundColor: '#FFD93D20' }]}>
+              <View style={styles.settingIcon}>
                 <MaterialCommunityIcons name="volume-high" size={22} color="#FFD93D" />
               </View>
               <Text style={styles.settingText}>Sound Effects</Text>
             </View>
+
             <Switch 
               value={isSoundOn} 
               onValueChange={setIsSoundOn}
-              trackColor={{ false: '#3F3F5F', true: '#20BF6B' }}
+              trackColor={{ false: COLORS.border, true: '#20BF6B' }}
               thumbColor="#FFF"
             />
           </View>
         </View>
 
       
-        <TouchableOpacity style={styles.logoutBtn} onPress={()=>{
-          logout();
-          router.replace('/(auth)/log-in');
-        }}>
-          <MaterialCommunityIcons name="logout" size={20} color="#FF6B6B" />
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={() => {
+            logout();
+            router.replace('/(auth)/log-in');
+          }}
+        >
+          <MaterialCommunityIcons name="logout" size={20} color={COLORS.danger} />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
 
+    
         <Text style={styles.versionText}>
-            App Version {Constants.manifest2?.extra?.expoClient?.version ?? Constants.expoConfig?.version}
+          App Version {Constants.expoConfig?.version}
         </Text>
 
       </ScrollView>
@@ -110,168 +137,160 @@ export default Profile;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1F1F39',
+    backgroundColor: COLORS.background,
   },
+
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: SPACING.xl,
   },
+
+  
   header: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
   },
+headerTitle: {
+
+  marginTop:20,
+  alignSelf: 'center',
+  marginBottom: SPACING.lg,
+  fontSize: 25,
+  fontFamily: FONTS.bold,
+  color: COLORS.textPrimary,
+},
+  menuButton: {
+    position: 'absolute',
+    left: SPACING.lg,
+    top: 0,
+    padding: SPACING.sm,
+  },
+
   avatarContainer: {
     width: 140,
     height: 140,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   avatarGlow: {
     position: 'absolute',
     width: 140,
     height: 140,
-    borderRadius: 70,
+    borderRadius: RADIUS.round,
     opacity: 0.25,
   },
+
   mainAvatar: {
     width: 110,
     height: 110,
-    borderRadius: 55,
+    borderRadius: RADIUS.round,
   },
-  levelBadge: {
-    position: 'absolute',
-    bottom: 0,
-    backgroundColor: '#FFD93D',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 15,
-    borderWidth: 3,
-    borderColor: '#1F1F39',
-  },
-  levelText: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 12,
-    color: '#1F1F39',
-  },
+
   username: {
     fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 15,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+    marginTop: SPACING.md,
   },
-  rankText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    color: '#5D5FEF',
-    letterSpacing: 1,
-  },
+
   statsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#2A2A40',
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 25,
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.xl,
     justifyContent: 'space-around',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: SPACING.xl,
   },
+
   statBox: {
     alignItems: 'center',
   },
+
   statValue: {
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
     fontSize: 18,
-    fontFamily: 'Poppins-Bold',
+    fontFamily: FONTS.bold,
     marginTop: 5,
   },
+
   statLabel: {
-    color: '#8585A6',
+    color: COLORS.textSecondary,
     fontSize: 11,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: FONTS.medium,
   },
+
   divider: {
     width: 1,
     height: 30,
-    backgroundColor: '#3F3F5F',
+    backgroundColor: COLORS.border,
   },
+
   sectionTitle: {
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
     fontSize: 18,
-    fontFamily: 'Poppins-Bold',
-    marginLeft: 25,
-    marginBottom: 15,
+    fontFamily: FONTS.bold,
+    marginLeft: SPACING.lg,
+    marginBottom: SPACING.md,
   },
-  avatarPicker: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  avatarOption: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#2A2A40',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedOption: {
-    borderColor: '#5D5FEF',
-    backgroundColor: '#3F3F5F',
-  },
-  optionImg: {
-    width: 60,
-    height: 60,
-  },
+
   settingsContainer: {
-    backgroundColor: '#2A2A40',
-    marginHorizontal: 20,
-    borderRadius: 25,
-    padding: 10,
-    marginBottom: 30,
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.sm,
+    marginBottom: SPACING.xl,
   },
+
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 15,
+    padding: SPACING.md,
   },
+
   settingInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+
   settingIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    marginRight: SPACING.md,
+    backgroundColor: '#FFD93D20',
   },
+
   settingText: {
-    color: '#FFFFFF',
+    color: COLORS.textPrimary,
     fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: FONTS.semi,
   },
+
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    padding: 15,
+    marginTop: SPACING.md,
   },
+
   logoutText: {
-    color: '#FF6B6B',
-    fontFamily: 'Poppins-Bold',
+    color: COLORS.danger,
+    fontFamily: FONTS.bold,
     fontSize: 16,
-    marginLeft: 10,
+    marginLeft: SPACING.sm,
   },
+
   versionText: {
     textAlign: 'center',
-    color: '#3F3F5F',
+    color: COLORS.border,
     fontSize: 12,
-    marginTop: 10,
-    fontFamily: 'Poppins-Regular',
-  }
+    marginTop: SPACING.sm,
+    fontFamily: FONTS.medium,
+  },
 });
