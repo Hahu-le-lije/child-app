@@ -125,10 +125,7 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
           <Image source={images.Logo} style={styles.avatar} resizeMode="contain" />
         </View>
         <Text style={styles.profileName}>{user?.username || 'Little Hero'}</Text>
-        <View style={styles.offlineBadge}>
-          <MaterialCommunityIcons name="cloud-off" size={12} color="#4ECDC4" />
-          <Text style={styles.offlineText}>OFFLINE MODE</Text>
-        </View>
+      
       </View>
 
       <View style={styles.divider} />

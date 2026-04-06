@@ -11,6 +11,7 @@ import {
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
 import { useContentStore } from "@/store/contentStore";
+import type { ContentPackCatalogItem } from "@/services/contentApi";
 import { getDeviceStorage } from "@/services/contentService";
 import { getContentPacks } from "@/database/contentRepository";
 import * as FileSystem from 'expo-file-system/legacy'; 
@@ -36,7 +37,7 @@ const Content = () => {
     setStorage(deviceStorage);
   };
 
-  const getItemStatus = (pack: any) => {
+  const getItemStatus = (pack: ContentPackCatalogItem) => {
     if (progress[pack.id] !== undefined) {
       return { status: "downloading", progress: progress[pack.id] };
     }
@@ -144,7 +145,7 @@ const Content = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: ContentPackCatalogItem }) => {
     const itemStatus = getItemStatus(item);
     
     return (
@@ -162,7 +163,7 @@ const Content = () => {
         )}
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
+          <Text style={styles.description}>{item.description ?? ""}</Text>
           <View style={styles.packInfo}>
             <Text style={styles.size}>{item.size} MB</Text>
             <Text style={styles.gameType}>{item.gameType}</Text>
@@ -250,12 +251,15 @@ const Content = () => {
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons name="package-variant" size={60} color="#3F3F5F" />
           <Text style={styles.emptyText}>No content packs available</Text>
+          <Text style={styles.emptyHint}>
+            Configure EXPO_PUBLIC_CONTENT_CATALOG_URL to load packs from your API.
+          </Text>
           <TouchableOpacity onPress={loadData} style={styles.retryButton}>
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
+        <FlatList<ContentPackCatalogItem>
           data={packs}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -395,7 +399,15 @@ const styles = StyleSheet.create({
     color: '#aaa',
     fontSize: 16,
     marginTop: 10,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyHint: {
+    color: '#6E6E8D',
+    fontSize: 13,
     marginBottom: 20,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   retryButton: {
     backgroundColor: '#5D5FEF',

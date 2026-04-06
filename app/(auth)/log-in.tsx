@@ -4,15 +4,15 @@ import InputField from '@/components/InputField';
 import CustomButton from '@/components/CustomButton';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { useAuthStore } from '@/store/authStore';
-import { loginChild } from '@/services/authApi';
+import { loginChild, AuthApiError } from '@/services/authApi';
 import { images } from '@/const';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const Login = () => {
   const { login } = useAuthStore();
-  const [username, setUsername] = React.useState('izzat');
-  const [password, setPassword] = React.useState('123');
+  const [username, setUsername] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
   const handleLogin = async () => {
@@ -22,9 +22,12 @@ const Login = () => {
       const data = await loginChild(username, password);
       await login(data);
       router.replace('/(root)/(tabs)/home');
-    } catch (error: any) {
-      // Use a friendlier error title
-      Alert.alert('Oops!', 'Check your name or secret code again!');
+    } catch (error: unknown) {
+      const message =
+        error instanceof AuthApiError
+          ? error.message
+          : 'Check your name or secret code again!';
+      Alert.alert('Oops!', message);
     } finally {
       setLoading(false);
     }
@@ -45,7 +48,7 @@ const Login = () => {
               <View style={styles.imageWrapper}>
                 <Image source={images.Logo} style={styles.image} resizeMode="contain" />
               </View>
-              <Text style={styles.title}>Secret Entry 🚀</Text>
+              <Text style={styles.title}>Secret Entry</Text>
               <Text style={styles.subtitle}>Tell us your name and secret code!</Text>
             </View>
 

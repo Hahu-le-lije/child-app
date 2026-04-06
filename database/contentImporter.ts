@@ -1,26 +1,29 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { db } from "@/database/db";
-import type { MockPackPayload } from "@/services/contentApi";
+import type { MockPackPayload } from "@/types/contentPack";
+import {
+  downloadAndResolveRemoteAssets,
+  writeResolvedManifestFile,
+} from "@/services/packAssetPipeline";
+import { savePackManifest } from "@/database/contentRepository";
+import { importNestedManifestContents } from "@/database/nestedContentImporter";
 
-async function execMany(sql: string, paramsList: any[][]) {
+async function execMany(sql: string, paramsList: unknown[][]) {
   for (const params of paramsList) {
     // eslint-disable-next-line no-await-in-loop
-    await db.runAsync(sql, params);
+    await db.runAsync(sql, params as never[]);
   }
 }
 
-export async function importContentPackFromFile(uri: string) {
-  const raw = await FileSystem.readAsStringAsync(uri);
-  const payload = JSON.parse(raw) as MockPackPayload;
-
+async function importLegacyPayloadToDb(payload: MockPackPayload) {
+  const levels = payload.levels ?? [];
   await db.execAsync("BEGIN;");
   try {
-    // Levels upsert
     await execMany(
       `INSERT OR REPLACE INTO levels
         (id, game_type, level_number, title, description, difficulty, unlocked_at_start, required_score, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-      payload.levels.map((l) => [
+      levels.map((l) => [
         l.id,
         l.game_type,
         l.level_number,
@@ -66,7 +69,6 @@ export async function importContentPackFromFile(uri: string) {
     }
 
     if (payload.word_images?.length) {
-      // Clear old images for the words we are importing, then insert
       const wordIds = Array.from(new Set(payload.word_images.map((wi) => wi.word_id)));
       await execMany(`DELETE FROM word_images WHERE word_id = ?`, wordIds.map((id) => [id]));
 
@@ -193,3 +195,24 @@ export async function importContentPackFromFile(uri: string) {
   }
 }
 
+/**
+ * Reads a downloaded `.pack` JSON file, downloads remote assets (S3 / https) into
+ * `content/{packId}/assets/`, stores the resolved manifest in SQLite + manifest.json,
+ * then imports rows into game tables (nested `contents` or legacy flat pack).
+ */
+export async function importContentPackFromFile(uri: string, packId: string) {
+  const raw = await FileSystem.readAsStringAsync(uri);
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+  const { resolved } = await downloadAndResolveRemoteAssets(parsed, packId);
+  await savePackManifest(packId, JSON.stringify(resolved), uri);
+  await writeResolvedManifestFile(packId, resolved);
+
+  const tree = resolved as Record<string, unknown>;
+  if (tree.contents && typeof tree.contents === "object") {
+    await importNestedManifestContents(tree, packId);
+    return;
+  }
+
+  await importLegacyPayloadToDb(tree as unknown as MockPackPayload);
+}

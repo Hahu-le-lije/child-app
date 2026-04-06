@@ -6,20 +6,29 @@ const REFRESH_KEY = "child_refresh_token";
 const USER_KEY = "child_profile";
 const EXPIRY_KEY = "child_token_expiry";
 
+function ttlSeconds(expiresIn: number | undefined): number {
+  if (typeof expiresIn === "number" && Number.isFinite(expiresIn) && expiresIn > 0) {
+    return expiresIn;
+  }
+  return 3600;
+}
+
 export const saveAuthData = async (
   accessToken: string,
   refreshToken: string,
-  user: any,
-  expiresIn: number
+  user: unknown,
+  expiresInSeconds?: number
 ) => {
   try {
-    const expiryTime = Date.now() + expiresIn * 1000;
+    const ttl = ttlSeconds(expiresInSeconds);
+    const expiryTime = Date.now() + ttl * 1000;
 
     await setItem(TOKEN_KEY, accessToken);
     await setItem(REFRESH_KEY, refreshToken);
-    await setItem(USER_KEY, JSON.stringify(user));
+    if (user != null) {
+      await setItem(USER_KEY, JSON.stringify(user));
+    }
     await setItem(EXPIRY_KEY, expiryTime.toString());
-
   } catch (error) {
     console.error("error in saving auth data:", error);
   }

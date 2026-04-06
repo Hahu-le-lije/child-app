@@ -98,6 +98,14 @@ export const initDatabase = async () => {
       created_at TEXT
     );
 
+    -- Resolved nested manifest (URLs → local file URIs) per pack
+    CREATE TABLE IF NOT EXISTS pack_manifests (
+      pack_id TEXT PRIMARY KEY,
+      manifest_json TEXT NOT NULL,
+      source_pack_path TEXT,
+      created_at TEXT
+    );
+
     -- Levels table for game progression
     CREATE TABLE IF NOT EXISTS levels (
       id TEXT PRIMARY KEY,

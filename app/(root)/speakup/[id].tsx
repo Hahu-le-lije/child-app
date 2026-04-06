@@ -52,9 +52,8 @@ const SpeakUpLevel = () => {
     setRecorder(null)
     setRecordedUri(res.uri)
 
-    // Dummy feedback (AI integration later): short recordings likely incorrect.
     const ok = (res.durationMs ?? 0) > 700
-    setMsg(ok ? 'Good job! (dummy feedback)' : 'Too short — try again (dummy feedback)')
+    setMsg(ok ? 'Good job!' : 'Too short — try again.')
   }
 
   return (

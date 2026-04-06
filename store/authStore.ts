@@ -1,73 +1,124 @@
-import {create} from "zustand"
+import { create } from "zustand";
 import NetInfo from "@react-native-community/netinfo";
-import { getAccessToken,getUser,isTokenValid,clearAuth,saveAuthData,getRefreshToken } from "@/services/authStorage";
-import { refreshToken } from "@/services/authApi";
+import {
+  getAccessToken,
+  getUser,
+  isTokenValid,
+  clearAuth,
+  saveAuthData,
+  getRefreshToken,
+} from "@/services/authStorage";
+import {
+  refreshSessionToken,
+  AuthApiError,
+  type LoginResponse,
+  type AuthUser,
+} from "@/services/authApi";
 
 interface AuthState {
-  user: any;
+  user: AuthUser | null;
   loading: boolean;
-  
-  setUser: (user: any) => void;
+
+  setUser: (user: AuthUser | null) => void;
   checkAuthOnStart: () => Promise<void>;
-  login: (data: any) => Promise<void>;
+  login: (data: LoginResponse) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
 }
 
-export const useAuthStore=create<AuthState>((set)=>({
-    user:null,
-    loading:true,
-    setUser:(user)=>set({user}),
-    checkAuthOnStart:async()=> {
-        try{
-            const token=await getAccessToken();
-            const storedUser=await getUser();
-            const valid=await isTokenValid();
-         if(token && storedUser){
-            set({user:storedUser})
-            if(!valid){
-                const net=await NetInfo.fetch();
-                if(net.isConnected){
-                    await useAuthStore.getState().refreshToken();
-                }
-            }
-         }
-        }catch(error){
-            console.log("auth start error: ", error)
-        }finally{
-            set({loading:false})
+function isOnline(net: Awaited<ReturnType<typeof NetInfo.fetch>>): boolean {
+  if (net.isConnected !== true) return false;
+  if (net.isInternetReachable === false) return false;
+  return true;
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  loading: true,
+
+  setUser: (user) => set({ user }),
+
+  checkAuthOnStart: async () => {
+    try {
+      const token = await getAccessToken();
+      const storedUser = await getUser();
+      const valid = await isTokenValid();
+
+      if (!token || !storedUser) {
+        if (storedUser && !token) {
+          await clearAuth();
+          set({ user: null });
         }
-    },
-    login: async (data) => {
-        await saveAuthData(
-            data.accessToken,
-            data.refreshToken,
-            data.user,
-            data.expiresIn
-        );
-        set({user:data.user})
-    },
-    logout: async () => {
+        return;
+      }
+
+      set({ user: storedUser });
+
+      if (valid) return;
+
+      const net = await NetInfo.fetch();
+      if (isOnline(net)) {
+        await get().refreshToken();
+      }
+    } catch (error) {
+      console.log("auth start error: ", error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  login: async (data: LoginResponse) => {
+    await saveAuthData(
+      data.accessToken,
+      data.refreshToken,
+      data.user,
+      data.expiresIn
+    );
+    set({ user: data.user });
+  },
+
+  logout: async () => {
+    await clearAuth();
+    set({ user: null });
+  },
+
+  refreshToken: async () => {
+    const refreshTokenValue = await getRefreshToken();
+    if (!refreshTokenValue) return;
+
+    const storedUser = await getUser();
+    try {
+      const data = await refreshSessionToken(refreshTokenValue);
+      const nextRefresh = data.refreshToken?.trim()
+        ? data.refreshToken
+        : refreshTokenValue;
+      const nextUser = data.user ?? storedUser;
+      if (!nextUser) {
         await clearAuth();
-        set({user:null})
-    },
-    refreshToken: async () => {
-        try{
-            const refreshTokenValue=await getRefreshToken()
-            if(!refreshTokenValue) return;
-            
-            const data=await refreshToken(refreshTokenValue);
-            await saveAuthData(
-                data.accessToken,
-                data.refreshToken,
-                data.user,
-                data.expiresIn
-            );
-            set({user:data.user})
+        set({ user: null });
+        return;
+      }
+      await saveAuthData(
+        data.accessToken,
+        nextRefresh,
+        nextUser,
+        data.expiresIn
+      );
+      set({ user: nextUser });
+    } catch (e) {
+      if (e instanceof AuthApiError) {
+        if (e.kind === "network") {
+          return;
         }
-        catch{
-            await clearAuth();
-            set({user:null})
+        if (e.status === 401 || e.status === 403 || e.kind === "auth") {
+          await clearAuth();
+          set({ user: null });
+          return;
         }
-    },
-}))
+        return;
+      }
+      await clearAuth();
+      set({ user: null });
+    }
+  },
+}));

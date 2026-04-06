@@ -1,5 +1,8 @@
 import { db } from "@/database/db";
 
+/** Full nested pack JSON (URLs already resolved to local file URIs). */
+export { getPackManifest, getPackManifestJson } from "@/database/contentRepository";
+
 export const getLevelsForGame = async (gameType: string, childId?: string) => {
 
   const levels = await db.getAllAsync(
