@@ -44,7 +44,7 @@ const Home = () => {
             <MaterialCommunityIcons name="menu" size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerTitles}>
-            <Text style={styles.greeting}>Hi, {user?.username || 'Hero'}! 🌟</Text>
+            <Text style={styles.greeting}>Hi, {user?.username || 'Hero'}</Text>
             <Text style={styles.subGreeting}>Ready for a new mission?</Text>
           </View>
           <TouchableOpacity style={styles.pointsBadge}>
@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
   headerTitles: {
     flex: 1,
     minWidth: 0,
+    marginTop:20
   },
   greeting: { 
     fontSize: 28, 

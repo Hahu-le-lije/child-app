@@ -6,52 +6,43 @@ import {
   TouchableOpacity, 
   Image, 
   ScrollView, 
-  Dimensions,
   Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons} from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/authStore';
-
-const { width } = Dimensions.get('window');
-
-const AVATARS = [
-  "https://cdn-icons-png.flaticon.com/512/3022/3022221.png", // Blue Monster
-  "https://cdn-icons-png.flaticon.com/512/3022/3022210.png", // Purple Monster
-  "https://cdn-icons-png.flaticon.com/512/3022/3022234.png", // Green Monster
-  "https://cdn-icons-png.flaticon.com/512/3022/3022217.png", // Orange Monster
-];
+import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 
 const Profile = () => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]);
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const router = useRouter();
+
   const [isSoundOn, setIsSoundOn] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
-        {/* --- Hero Header --- */}
+    
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
             <LinearGradient 
               colors={['#5D5FEF', '#A5A6F6']} 
               style={styles.avatarGlow} 
             />
-            <Image source={{ uri: selectedAvatar }} style={styles.mainAvatar} />
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>Lv. 5</Text>
-            </View>
+            <Image source={user?.avatar && !imageError ? { uri:`data:image/png;base64,${user.avatar}`}: require('@/assets/images/F2I.png')} style={styles.mainAvatar} 
+            onError={()=>setImageError(true)}
+            />
+           
           </View>
           <Text style={styles.username}>{user?.username || "Super Learner"}</Text>
-          <Text style={styles.rankText}>Amharic Explorer</Text>
         </View>
 
-        {/* --- Stats Summary --- */}
+      
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="star" size={24} color="#FFD700" />
@@ -72,44 +63,13 @@ const Profile = () => {
           </View>
         </View>
 
-        {/* --- Avatar Selection --- */}
-        <Text style={styles.sectionTitle}>Pick Your Character</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.avatarPicker}
-        >
-          {AVATARS.map((uri, index) => (
-            <TouchableOpacity 
-              key={index} 
-              onPress={() => setSelectedAvatar(uri)}
-              style={[
-                styles.avatarOption, 
-                selectedAvatar === uri && styles.selectedOption
-              ]}
-            >
-              <Image source={{ uri }} style={styles.optionImg} />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+     
+       
 
-        {/* --- Game Settings --- */}
+      
         <Text style={styles.sectionTitle}>Game Settings</Text>
         <View style={styles.settingsContainer}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <View style={[styles.settingIcon, { backgroundColor: '#5D5FEF20' }]}>
-                <MaterialCommunityIcons name="music" size={22} color="#5D5FEF" />
-              </View>
-              <Text style={styles.settingText}>Music</Text>
-            </View>
-            <Switch 
-              value={isMusicOn} 
-              onValueChange={setIsMusicOn}
-              trackColor={{ false: '#3F3F5F', true: '#20BF6B' }}
-              thumbColor="#FFF"
-            />
-          </View>
+      
 
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -127,13 +87,18 @@ const Profile = () => {
           </View>
         </View>
 
-        {/* --- Sign Out --- */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+      
+        <TouchableOpacity style={styles.logoutBtn} onPress={()=>{
+          logout();
+          router.replace('/(auth)/log-in');
+        }}>
           <MaterialCommunityIcons name="logout" size={20} color="#FF6B6B" />
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.versionText}>App Version 1.0.2</Text>
+        <Text style={styles.versionText}>
+            App Version {Constants.manifest2?.extra?.expoClient?.version ?? Constants.expoConfig?.version}
+        </Text>
 
       </ScrollView>
     </SafeAreaView>

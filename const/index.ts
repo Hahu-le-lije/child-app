@@ -80,3 +80,34 @@ export const GAMES = [
     route:"storyquiz"
   }
 ];
+export const COLORS = {
+  background: '#1F1F39',
+  card: '#2F2F42',
+  primary: '#3D5CFF',
+  secondary: '#7C3AED',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#BABBC9',
+  muted: '#6E6E8D',
+  border: '#2F2F42',
+  danger: '#FF6B6B',
+};
+
+export const SPACING = {
+  sm: 10,
+  md: 15,
+  lg: 20,
+  xl: 25,
+};
+
+export const RADIUS = {
+  md: 12,
+  lg: 15,
+  xl: 20,
+  round: 999,
+};
+
+export const FONTS = {
+  bold: 'Poppins-Bold',
+  semi: 'Poppins-SemiBold',
+  medium: 'Poppins-Medium',
+};

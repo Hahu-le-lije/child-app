@@ -7,7 +7,7 @@
 export type AuthUser = {
   id: string;
   username: string;
-  role?: string;
+  avatar?: string;
   [key: string]: unknown;
 };
 
@@ -20,7 +20,7 @@ export type LoginResponse = {
 
 export type RefreshResponse = {
   accessToken: string;
-  /** Omitted when the server rotates access only and keeps the same refresh token. */
+  
   refreshToken?: string;
   expiresIn: number;
   user?: AuthUser;
@@ -193,9 +193,7 @@ export async function loginChild(username: string, password: string): Promise<Lo
   return normalizeLoginPayload(flattenEnvelope(raw));
 }
 
-/**
- * Exchange refresh token for new access (and optionally new refresh) token.
- */
+
 export async function refreshSessionToken(refreshTokenValue: string): Promise<RefreshResponse> {
   const base = getApiBase();
   if (!base) {

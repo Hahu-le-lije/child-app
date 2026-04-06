@@ -73,7 +73,7 @@ const Login = () => {
               />
 
               <CustomButton
-                title={loading ? "Opening Door..." : "LET'S PLAY! ✨"}
+                title={loading ? "Opening Door..." : "LET'S PLAY!"}
                 onPress={handleLogin}
                 containerStyle={styles.button}
                 textStyle={styles.buttonText}
