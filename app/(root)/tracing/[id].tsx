@@ -1,232 +1,352 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Dimensions } from 'react-native';
-import { Canvas, Path, Skia, Mask, Fill } from '@shopify/react-native-skia';
+import { Canvas, Path, Skia, Mask } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSharedValue, useDerivedValue } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 import { Audio } from 'expo-av';
-import { COLORS } from '@/const';
+import { COLORS, SPACING, RADIUS } from '@/const';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+
 const { width } = Dimensions.get('window');
+const CANVAS_SIZE = width + 100;
+const FOLLOW_THRESHOLD = 45;
 
-
-
-const dummyFidelData = {
-  lettertotrace: "አ",
-  pronoucevoicelink: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+const dummyLevelData = {
+  levelid: "level_1",
+  questions: [
+    {
+      id: "q1",
+      lettertotrace: "A",
+      svg: "m15.1 716.4 129-605.04 71.8 0 129 605.04-62.6 0-38.3-197.52-128 0-38.3 197.52-62.6 0zm217.3-257.88-52.4-285.96-52.7 285.96 105.1 0z",
+      pronoucevoicelink: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    },
+    {
+      id: "q2",
+      lettertotrace: "አ",
+      svg: "M 53.223 63.526 ... Z",
+      pronoucevoicelink: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    }
+  ]
 };
 
-// SVG path for አ
-const correctSVGPath =
-  "M 180 80 Q 120 80 100 140 Q 90 200 130 240 Q 160 270 200 260 " +
-  "Q 240 250 260 210 Q 270 150 240 110 Q 210 80 180 80 " +
-  "M 150 160 L 210 160 " +
-  "M 130 200 Q 160 190 190 200";
-
 const FidelTracingScreen = () => {
-  const { lettertotrace, pronoucevoicelink } = dummyFidelData;
+  const router = useRouter();
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const currentQuestion = dummyLevelData.questions[currentIdx];
 
-  // We use a shared value for the path to keep it performant
   const drawPath = useSharedValue(Skia.Path.Make());
+  const progress = useSharedValue(0);
+
   const [isPlaying, setIsPlaying] = useState(false);
-  const soundRef = useRef(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
   const [eraserCount, setEraserCount] = useState(0);
   const startTime = useRef(Date.now());
 
-  const correctLetterPath = useRef(Skia.Path.MakeFromSVGString(correctSVGPath));
+  const letterPath = useMemo(() => {
+    const path = Skia.Path.MakeFromSVGString(currentQuestion.svg);
+    if (!path) return Skia.Path.Make();
 
-  // Audio Logic
+    const bounds = path.getBounds();
+    const scale = Math.min(CANVAS_SIZE / bounds.width, CANVAS_SIZE / bounds.height) * 0.92;
+
+    const matrix = Skia.Matrix();
+    matrix.translate(
+      (CANVAS_SIZE - bounds.width * scale) / 2 - bounds.x * scale,
+      (CANVAS_SIZE - bounds.height * scale) / 2 - bounds.y * scale
+    );
+    matrix.scale(scale, scale);
+
+    path.transform(matrix);
+    return path;
+  }, [currentIdx]);
+
   const toggleAudio = async () => {
     try {
-      if (!soundRef.current) {
-        const { sound } = await Audio.Sound.createAsync({ uri: pronoucevoicelink });
-        soundRef.current = sound;
-      }
-      const status = await soundRef.current.getStatusAsync();
-      if (status.isPlaying) {
-        await soundRef.current.pauseAsync();
-        setIsPlaying(false);
-      } else {
-        await soundRef.current.playAsync();
-        setIsPlaying(true);
-      }
-    } catch (error) {
-      Alert.alert('Audio Error', 'Failed to play sound');
+      if (soundRef.current) await soundRef.current.unloadAsync();
+      const { sound } = await Audio.Sound.createAsync({ uri: currentQuestion.pronoucevoicelink });
+      soundRef.current = sound;
+      await sound.playAsync();
+      setIsPlaying(true);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && !status.isPlaying) setIsPlaying(false);
+      });
+    } catch {
+      Alert.alert("Error", "Audio playback failed");
     }
   };
 
-  useEffect(() => {
-    return () => { soundRef.current?.unloadAsync(); };
-  }, []);
+  const gesture = Gesture.Pan()
+    .onBegin((e) => {
+      drawPath.value.moveTo(e.x, e.y);
+      drawPath.modify();
+    })
+    .onChange((e) => {
+      drawPath.value.lineTo(e.x, e.y);
+      drawPath.modify();
 
-  const clearDrawing = () => {
-    drawPath.value = Skia.Path.Make();
-    setEraserCount((prev) => prev + 1);
-  };
+      const closestT = getClosestProgressOnPath(e.x, e.y, letterPath);
 
-  // Scoring Logic
+      if (closestT > progress.value) {
+        progress.value = closestT;
+        Haptics.selectionAsync();
+      }
+    });
+
   const calculateScore = () => {
     const userPath = drawPath.value;
-    const correctPath = correctLetterPath.current;
-
-    if (!correctPath || userPath.isEmpty()) return { finalScore: 0 };
+    if (userPath.isEmpty()) return { score: 0, accuracy: 0 };
 
     const timeTaken = (Date.now() - startTime.current) / 1000;
-    const strokeAccuracy = calculateStrokeAccuracy(userPath, correctPath);
-    
-    const eraserUsageRatio = Math.min(eraserCount / 5, 1);
-    const neatnessScore = (1 - eraserUsageRatio) * 20;
 
-    let normalizedTime = 0;
-    if (timeTaken <= 8) normalizedTime = 1;
-    else if (timeTaken >= 40) normalizedTime = 0;
-    else normalizedTime = (40 - timeTaken) / (40 - 8);
+    const stroke = getStrokeAccuracy(userPath, letterPath);
+    const fill = getFillAccuracy(userPath, letterPath);
 
-    const speedScore = normalizedTime * 20;
-    const accuracyScore = strokeAccuracy * 60;
-    const finalScore = Math.round(accuracyScore + neatnessScore + speedScore);
+    const accuracy = stroke * 0.4 + fill * 0.6;
+
+    const accuracyScore = accuracy * 80;
+    const neatnessScore = Math.max(0, (1 - eraserCount / 8)) * 10;
+    const speedScore = Math.max(0, Math.min(1, (40 - timeTaken) / 30)) * 10;
+
+    const finalScore = Math.max(accuracyScore + neatnessScore + speedScore, 40);
 
     return {
-      finalScore: Math.max(0, Math.min(100, finalScore)),
-      strokeAccuracy: Math.round(strokeAccuracy * 100),
-      timeTaken: timeTaken.toFixed(1),
+      score: Math.round(finalScore),
+      accuracy: Math.round(accuracy * 100),
     };
   };
 
-  const handleDone = () => {
-    const scoreData = calculateScore();
-    Alert.alert("Excellent Work! 🎉", `Score: ${scoreData.finalScore}/100\nAccuracy: ${scoreData.strokeAccuracy}%\nTime: ${scoreData.timeTaken}s`, [
-      { text: "Try Again", onPress: resetGame },
-      { text: "OK" },
-    ]);
+  const handleNext = () => {
+    const stats = calculateScore();
+
+    Alert.alert(
+      "Result",
+      `Score: ${stats.score}/100\nAccuracy: ${stats.accuracy}%`,
+      [{
+        text: currentIdx < dummyLevelData.questions.length - 1 ? "Next Letter" : "Finish",
+        onPress: () => {
+          if (currentIdx < dummyLevelData.questions.length - 1) {
+            setCurrentIdx((prev) => prev + 1);
+            resetCanvas();
+          } else {
+            Alert.alert("Done!", "Level complete 🎉");
+          }
+        }
+      }]
+    );
   };
 
-  const resetGame = () => {
+  const resetCanvas = () => {
     drawPath.value = Skia.Path.Make();
+    drawPath.modify();
+    progress.value = 0;
     setEraserCount(0);
     startTime.current = Date.now();
   };
 
-  // FIX: Path immutability handled by creating a new path on every change
-  const panGesture = Gesture.Pan()
-    .onBegin((e) => {
-      const newPath = drawPath.value.copy();
-      newPath.moveTo(e.x, e.y);
-      drawPath.value = newPath;
-    })
-    .onChange((e) => {
-      const newPath = drawPath.value.copy();
-      newPath.lineTo(e.x, e.y);
-      drawPath.value = newPath;
-    });
-
   return (
     <GestureHandlerRootView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.letter}>{lettertotrace}</Text>
-        <TouchableOpacity style={styles.soundButton} onPress={toggleAudio}>
-          <Text style={styles.soundText}>{isPlaying ? '⏸' : '🔊'}</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backBtn}>←</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.letterPreview}>{currentQuestion.lettertotrace}</Text>
+
+        <TouchableOpacity style={styles.audioBtn} onPress={toggleAudio}>
+          <Text style={styles.btnTextIcon}>{isPlaying ? '⏸' : '▶'}</Text>
         </TouchableOpacity>
       </View>
 
-      <GestureDetector gesture={panGesture}>
-        <View style={styles.tracingContainer}>
+      <GestureDetector gesture={gesture}>
+        <View style={styles.canvasContainer}>
           <Canvas style={styles.canvas}>
-            <Fill color={COLORS.card} />
-     
-            <Path
-              path={correctLetterPath.current}
-              color="#E0E0E0"
-              strokeWidth={40}
-              style="stroke"
-              strokeCap="round"
-            />
 
            
-            <Path
-              path={drawPath}
-              color={COLORS.primary}
-              strokeWidth={18}
-              style="stroke"
-              strokeCap="round"
-              strokeJoin="round"
-            />
+            <Path path={letterPath} color={COLORS.muted} strokeWidth={6} style="stroke" opacity={0.5} />
+
+            <Path path={letterPath} color="white" />
+
+            
+            <Mask
+              mask={
+                <Path
+                  path={drawPath}
+                  color="black"
+                  strokeWidth={60}
+                  style="stroke"
+                  strokeCap="round"
+                  strokeJoin="round"
+                />
+              }
+            >
+              <Path path={letterPath} color={COLORS.primary} />
+            </Mask>
+
           </Canvas>
         </View>
       </GestureDetector>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.clearBtn} onPress={clearDrawing}>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.clearBtn} onPress={resetCanvas}>
           <Text style={styles.btnText}>Clear</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.doneBtn} onPress={handleDone}>
-          <Text style={styles.btnText}>Score</Text>
+
+        <TouchableOpacity style={styles.doneBtn} onPress={handleNext}>
+          <Text style={styles.btnText}>Finish</Text>
         </TouchableOpacity>
       </View>
     </GestureHandlerRootView>
   );
 };
 
-// FIX: Correct Point sampling logic
-function calculateStrokeAccuracy(userPath, correctPath) {
-  const userPoints = getPointsFromPath(userPath, 50);
-  const correctPoints = getPointsFromPath(correctPath, 50);
+/* ================= HELPERS ================= */
 
-  let totalDeviation = 0;
-  let coveredCount = 0;
+function getClosestProgressOnPath(x: number, y: number, path: any): number {
+  let bestT = 0;
+  let minDist = Infinity;
 
-  userPoints.forEach((pt) => {
-    let minDist = Infinity;
-    correctPoints.forEach((cpt) => {
-      const dist = Math.hypot(pt.x - cpt.x, pt.y - cpt.y);
-      if (dist < minDist) minDist = dist;
-    });
-    totalDeviation += minDist;
-    if (minDist < 40) coveredCount++;
-  });
+  const iter = Skia.ContourMeasureIter(path, false, 1.0);
+  let contour = iter.next();
 
-  const avgDeviation = totalDeviation / userPoints.length;
-  const coverage = coveredCount / userPoints.length;
-  const closeness = Math.max(0, 1 - avgDeviation / 60);
+  while (contour) {
+    const length = contour.length();
 
-  return (coverage * 0.8) + (closeness * 0.2);
-}
+    for (let i = 0; i <= 100; i++) {
+      const t = i / 100;
+      const pos = contour.getPosTan(t * length);
 
-function getPointsFromPath(path, numPoints = 50) {
-  const points = [];
-  const length = path.length();
-  for (let i = 0; i <= numPoints; i++) {
-    const pt = path.getPointAtLength((i / numPoints) * length);
-    points.push(pt);
+      const dx = pos.x - x;
+      const dy = pos.y - y;
+      const dist = dx * dx + dy * dy;
+
+      if (dist < minDist && dist < FOLLOW_THRESHOLD * FOLLOW_THRESHOLD) {
+        minDist = dist;
+        bestT = t;
+      }
+    }
+
+    contour = iter.next();
   }
-  return points;
+
+  return bestT;
 }
+
+function getStrokeAccuracy(userPath: any, targetPath: any): number {
+  const numSamples = 60;
+  const threshold = 40;
+
+  let good = 0, total = 0;
+
+  const iter = Skia.ContourMeasureIter(userPath, false, 1.0);
+  let contour = iter.next();
+
+  while (contour) {
+    const length = contour.length();
+
+    for (let i = 0; i <= numSamples; i++) {
+      const pos = contour.getPosTan((i / numSamples) * length);
+
+      if (isPointNearPath(pos.x, pos.y, targetPath, threshold)) good++;
+      total++;
+    }
+
+    contour = iter.next();
+  }
+
+  return total ? good / total : 0;
+}
+
+function getFillAccuracy(userPath: any, targetPath: any): number {
+  const numSamples = 60;
+  let inside = 0, total = 0;
+
+  const iter = Skia.ContourMeasureIter(userPath, false, 1.0);
+  let contour = iter.next();
+
+  while (contour) {
+    const length = contour.length();
+
+    for (let i = 0; i <= numSamples; i++) {
+      const pos = contour.getPosTan((i / numSamples) * length);
+
+      if (targetPath.contains(pos.x, pos.y)) inside++;
+      total++;
+    }
+
+    contour = iter.next();
+  }
+
+  return total ? inside / total : 0;
+}
+
+function isPointNearPath(x: number, y: number, path: any, threshold: number) {
+  const iter = Skia.ContourMeasureIter(path, false, 1.0);
+  let contour = iter.next();
+
+  while (contour) {
+    const length = contour.length();
+
+    for (let i = 0; i <= 40; i++) {
+      const pos = contour.getPosTan((i / 40) * length);
+
+      const dx = pos.x - x;
+      const dy = pos.y - y;
+
+      if (dx * dx + dy * dy <= threshold * threshold) return true;
+    }
+
+    contour = iter.next();
+  }
+
+  return false;
+}
+
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    padding: SPACING.lg,
     paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: COLORS.card,
   },
-  letter: { fontSize: 80, fontWeight: 'bold', color: COLORS.textPrimary },
-  soundButton: { backgroundColor: COLORS.primary, padding: 15, borderRadius: 50 },
-  soundText: { color: 'white', fontSize: 20 },
-  tracingContainer: {
-    flex: 1,
-    margin: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    elevation: 5,
+  backBtn: { fontSize: 24, color: COLORS.textPrimary },
+  letterPreview: { fontSize: 60, color: COLORS.textPrimary, fontWeight: 'bold' },
+  audioBtn: { backgroundColor: COLORS.secondary, padding: 12, borderRadius: RADIUS.round },
+  btnTextIcon: { color: 'white', fontSize: 22 },
+
+  canvasContainer: {
+    width: CANVAS_SIZE,
+    height: CANVAS_SIZE,
+    alignSelf: 'center',
   },
   canvas: { flex: 1 },
-  buttonRow: { flexDirection: 'row', padding: 20, gap: 15 },
-  clearBtn: { flex: 1, backgroundColor: COLORS.danger, padding: 20, borderRadius: 15, alignItems: 'center' },
-  doneBtn: { flex: 1, backgroundColor: '#4CAF50', padding: 20, borderRadius: 15, alignItems: 'center' },
-  btnText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+
+  footer: {
+    flexDirection: 'row',
+    padding: SPACING.lg,
+    gap: SPACING.md,
+  },
+  clearBtn: {
+    flex: 1,
+    backgroundColor: COLORS.danger,
+    padding: 18,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+  },
+  doneBtn: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    padding: 18,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+  },
+  btnText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
 });
 
 export default FidelTracingScreen;
