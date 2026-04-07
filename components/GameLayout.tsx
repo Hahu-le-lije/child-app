@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
-
+import {COLORS} from "@/const";
 const GameLayout = ({ title, children }: any) => {
   const router = useRouter();
 
@@ -11,9 +11,9 @@ const GameLayout = ({ title, children }: any) => {
       
     
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={26} color="#fff" />
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={28} color={COLORS.textPrimary} />
+          </TouchableOpacity>
 
         <Text style={styles.title}>{title}</Text>
 
@@ -36,7 +36,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1F1F39",
   },
-
+ backButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",

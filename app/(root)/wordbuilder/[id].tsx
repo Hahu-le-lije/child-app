@@ -34,7 +34,6 @@ const WordBuilder = () => {
   const [hint, setHint] = useState<string | null>(null);
   const [selectedWordInfo, setSelectedWordInfo] = useState<any>(null);
 
-  // 🔥 NEW STATES
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [feedbackText, setFeedbackText] = useState<string | null>(null);
@@ -59,7 +58,7 @@ const WordBuilder = () => {
         const currentPathArray = pathRef.current;
         const pathLength = currentPathArray.length;
 
-        // Backtrack
+        
         if (pathLength > 1 && currentPathArray[pathLength - 2] === index) {
           pathRef.current = currentPathArray.slice(0, -1);
           setCurrentPath([...pathRef.current]);
@@ -76,10 +75,7 @@ const WordBuilder = () => {
     });
   };
 
-  const shuffleLetters = () => {
-    const shuffled = [...letters].sort(() => Math.random() - 0.5);
-    setLetters(shuffled);
-  };
+  
 
   const panResponder = useRef(
     PanResponder.create({
@@ -143,28 +139,16 @@ const WordBuilder = () => {
     <GameLayout title={`Level ${id}`}>
       <View style={styles.container}>
 
-        {/* 🔥 TOP BAR */}
+      
         <View style={styles.topBar}>
           <Text style={styles.scoreText}>⭐ {score}</Text>
           <Text style={styles.comboText}>🔥 x{combo}</Text>
         </View>
 
-        {/* Progress */}
-        <View style={styles.foundContainer}>
-          {INITIAL_DATA.correctWords.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              onPress={() => foundWords.includes(item.wordtext) && setSelectedWordInfo(item)}
-              style={[styles.wordSlot, foundWords.includes(item.wordtext) && styles.wordFound]}
-            >
-              <Text style={styles.wordSlotText}>
-                {foundWords.includes(item.wordtext) ? item.wordtext : '?'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        
+        
 
-        {/* Preview */}
+        
         <View style={styles.previewBox}>
           {currentPath.length > 0 && (
             <LinearGradient
@@ -182,7 +166,7 @@ const WordBuilder = () => {
           )}
         </View>
 
-        {/* Wheel */}
+        
         <View style={styles.wheelWrapper}>
           <View style={styles.wheelContainer} {...panResponder.panHandlers}>
             <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -226,18 +210,22 @@ const WordBuilder = () => {
             })}
           </View>
         </View>
+        <View style={styles.foundContainer}>
+          {INITIAL_DATA.correctWords.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => foundWords.includes(item.wordtext) && setSelectedWordInfo(item)}
+              style={[styles.wordSlot, foundWords.includes(item.wordtext) && styles.wordFound]}
+            >
+              <Text style={styles.wordSlotText}>
+                {foundWords.includes(item.wordtext) ? item.wordtext : '?'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        {/* 🔄 Shuffle */}
-        <TouchableOpacity style={styles.shuffleBtn} onPress={shuffleLetters}>
-          <Text style={styles.shuffleText}>🔄 Shuffle</Text>
-        </TouchableOpacity>
+      
 
-        {/* Hint */}
-        {hint && (
-          <View style={styles.hintContainer}>
-            <Text style={styles.hintText}>💡 {hint}</Text>
-          </View>
-        )}
 
         <WordDetailSheet
           isVisible={!!selectedWordInfo}
@@ -258,6 +246,7 @@ const styles = StyleSheet.create({
   comboText: { color: '#FFB800', fontSize: 18 },
 
   foundContainer: { flexDirection: 'row', gap: 10 },
+  
 
   wordSlot: { backgroundColor: '#2F2F42', padding: 10, borderRadius: 10 },
   wordFound: { backgroundColor: '#3D5CFF' },

@@ -1,113 +1,243 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
-import GameLayout from '@/components/GameLayout'
-import { getGameContent } from '@/services/gameContentService'
-import AudioButton from '@/components/AudioButton'
-import { createRecorder, playAudio } from '@/services/audioService'
+import React, { useState, } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { COLORS,  FONTS,  } from '@/const';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+const Speakup = () => {
+  const router=useRouter()
+  const [isRecording, setIsRecording] = useState(false);
+  const [isGrading, setIsGrading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
-const SpeakUpLevel = () => {
-  const { id } = useLocalSearchParams()
-  const levelId = String(id)
+  const pronunciationData = {
+    levels: {
+      level1: {
+        word: "Cat",
+        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        imageUrl: "https://picsum.photos/id/237/600/400"
+      }
+    }
+  };
 
-  const [items, setItems] = useState<any[]>([])
-  const [current, setCurrent] = useState(0)
-  const [msg, setMsg] = useState('')
-  const [recording, setRecording] = useState(false)
-  const [recordedUri, setRecordedUri] = useState<string | null>(null)
-  const [recorder, setRecorder] = useState<Awaited<ReturnType<typeof createRecorder>> | null>(null)
+  const currentGame = pronunciationData.levels["level1"];
 
-  useEffect(() => {
-    ;(async () => {
-      const rows = await getGameContent('pronunciation', levelId)
-      setItems(rows || [])
-      setCurrent(0)
-      setMsg('')
-      setRecordedUri(null)
-    })()
-  }, [levelId])
+  const playPronunciation = () => {
+    
+    console.log('Playing:', currentGame.audioUrl);
+  };
 
-  const item = items[current]
-  const expected = useMemo(() => String(item?.target_text || ''), [item])
+  const handleRecord = () => {
+    setIsRecording(true);
+    setFeedback(null);
 
-  const next = () => {
-    setMsg('')
-    setRecordedUri(null)
-    setCurrent((i) => (i + 1 < items.length ? i + 1 : 0))
-  }
+    
+    setTimeout(() => {
+      setIsRecording(false);
+      simulateGrading();
+    }, 3000);
+  };
 
-  const start = async () => {
-    if (recording) return
-    const r = await createRecorder()
-    setRecorder(r)
-    setRecording(true)
-    setMsg('Recording...')
-    await r.start()
-  }
-
-  const stop = async () => {
-    if (!recording || !recorder) return
-    const res = await recorder.stop()
-    setRecording(false)
-    setRecorder(null)
-    setRecordedUri(res.uri)
-
-    const ok = (res.durationMs ?? 0) > 700
-    setMsg(ok ? 'Good job!' : 'Too short — try again.')
-  }
+  const simulateGrading = () => {
+    setIsGrading(true);
+    
+    setTimeout(() => {
+      setIsGrading(false);
+      setFeedback("Excellent"); 
+    }, 1500);
+  };
 
   return (
-    <GameLayout title={`Speak Up ${levelId}`}>
-      <View style={styles.container}>
-        <Text style={styles.prompt}>Say this out loud:</Text>
-        <View style={styles.box}>
-          <Text style={styles.target}>{expected || '—'}</Text>
+    <SafeAreaView style={styles.container}>
+    
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={28} color={COLORS.textPrimary} />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>Speak Up!</Text>
+          <Text style={styles.subheader}>Level 1 • Lesson 1</Text>
         </View>
-
-        <View style={styles.row}>
-          <AudioButton uri={item?.audio_url} label="Listen" style={{ flex: 1 }} />
-          <TouchableOpacity
-            style={[styles.btnOk, { flex: 1, backgroundColor: recording ? '#F44336' : '#20BF6B' }]}
-            onPress={recording ? stop : start}
-          >
-            <Text style={styles.btnText}>{recording ? 'Stop' : 'Record'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {recordedUri && (
-          <View style={styles.row}>
-            <TouchableOpacity style={[styles.btnNo, { flex: 1 }]} onPress={() => playAudio(recordedUri)}>
-              <Text style={styles.btnText}>Play my voice</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btnOk, { flex: 1 }]} onPress={next}>
-              <Text style={styles.btnText}>Next</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.row}>
-          <TouchableOpacity style={[styles.btnNo, { flex: 1 }]} onPress={next}>
-            <Text style={styles.btnText}>Skip</Text>
-          </TouchableOpacity>
-        </View>
-
-        {!!msg && <Text style={styles.msg}>{msg}</Text>}
       </View>
-    </GameLayout>
-  )
-}
 
-export default SpeakUpLevel
+      <View style={styles.content}>
+        
+        <View style={styles.imageCard}>
+          <Image
+            source={{ uri: currentGame.imageUrl }}
+            style={styles.mainImage}
+            resizeMode="cover"
+          />
+          
+          <TouchableOpacity 
+            style={styles.speakerFloatingButton}
+            onPress={playPronunciation}
+          >
+            <Ionicons name="volume-high" size={30} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Word Display */}
+        <View style={styles.wordSection}>
+          <Text style={styles.wordText}>{currentGame.word}</Text>
+          {feedback && <Text style={styles.feedbackText}>{feedback}</Text>}
+        </View>
+
+        {/* Action Section */}
+        <View style={styles.actionSection}>
+          <Text style={styles.instruction}>
+            {isRecording ? "Listening..." : "Tap and say the word"}
+          </Text>
+
+          <TouchableOpacity 
+            onPress={handleRecord}
+            disabled={isRecording || isGrading}
+            style={[
+              styles.recordButton,
+              isRecording && styles.recordingActive
+            ]}
+          >
+            <View style={styles.recordOuter}>
+              <View style={[styles.recordInner, isRecording && styles.innerSquare]}>
+                <Ionicons 
+                  name={isGrading ? "sync" : "mic"} 
+                  size={40} 
+                  color="#fff" 
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+          
+          <Text style={styles.timerNote}>Max 3 seconds</Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  prompt: { color: '#aaa', marginBottom: 8, fontSize: 14 },
-  box: { backgroundColor: '#2F2F42', borderRadius: 12, padding: 20, alignItems: 'center' },
-  target: { color: '#fff', fontFamily: 'Abyssinica_SIL', fontSize: 46 },
-  row: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  btnOk: { flex: 1, backgroundColor: '#5D5FEF', padding: 12, borderRadius: 10, alignItems: 'center' },
-  btnNo: { flex: 1, backgroundColor: '#3F3F5F', padding: 12, borderRadius: 10, alignItems: 'center' },
-  btnText: { color: '#fff', fontFamily: 'Poppins-Medium' },
-  msg: { marginTop: 14, color: '#5D5FEF', fontSize: 16, textAlign: 'center' },
-})
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 15,
+    marginTop:50
+  },
+  backButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+  },
+  subheader: {
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'space-around',
+    paddingBottom: 40,
+  },
+  imageCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 30,
+    overflow: 'hidden',
+    height: 300,
+    width: '100%',
+    position: 'relative',
+    elevation: 5,
+  },
+  mainImage: {
+    width: '100%',
+    height: '100%',
+  },
+  speakerFloatingButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: COLORS.primary,
+    padding: 15,
+    borderRadius: 20,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  wordSection: {
+    alignItems: 'center',
+  },
+  wordText: {
+    fontSize: 48,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+    letterSpacing: 2,
+  },
+  feedbackText: {
+    fontSize: 20,
+    fontFamily: FONTS.medium,
+    color: '#4ADE80',
+    marginTop: 10,
+  },
+  actionSection: {
+    alignItems: 'center',
+  },
+  instruction: {
+    color: COLORS.textSecondary,
+    marginBottom: 20,
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+  },
+  recordButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(61, 92, 255, 0.2)', // Primary with transparency
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordingActive: {
+    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+  },
+  recordOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recordInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  innerSquare: {
+    backgroundColor: COLORS.danger,
+    borderRadius: 12,
+  },
+  timerNote: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 15,
+    fontFamily: FONTS.medium,
+  }
+});
 
+export default Speakup;
