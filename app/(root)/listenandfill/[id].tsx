@@ -1,517 +1,390 @@
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  ScrollView,
 } from "react-native";
-import React, { useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Progress from "react-native-progress";
 import GameLayout from "@/components/GameLayout";
 import AudioButton from "@/components/AudioButton";
-import { LISTEN_AND_FILL_CONTENT } from "./index";
+import { FILL_IN_THE_BLANK_CONTENT } from "./index";
 
-type ListenQuestion = {
-  sentenceTemplate: string;
-  answer: string;
-  options: string[];
-  audioUrl?: string;
+type FillBlankLevel = {
+  fullParagraph: string;
+  blankParagraph: string;
+  voiceReadingLink: string;
+  choices: string[];
 };
 
-type SessionStats = {
-  total: number;
-  correct: number;
-  wrong: number;
-  times: number[];
-};
+const tokenizeParagraph = (text: string) =>
+  text.split(/(__\d+__)/g).filter(Boolean);
+const blankKeys = (text: string) => text.match(/__\d+__/g) ?? [];
+const normalize = (text: string) =>
+  text.replace(/\s+/g, " ").trim().toLowerCase();
 
-const { width } = Dimensions.get("window");
-const progressWidth = Math.max(width - 190, 120);
-
-const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-
-const sortQuestionKeys = (keys: string[]) =>
-  keys.sort(
-    (a, b) => Number(a.replace(/\D/g, "")) - Number(b.replace(/\D/g, "")),
-  );
-
-const buildSentence = (template: string, answer: string, reveal: boolean) => {
-  const displayWord = reveal ? answer : "_____";
-  return template.includes("____")
-    ? template.replace("____", displayWord)
-    : `${template} ${displayWord}`;
-};
-
-const ListenAndFillGame = () => {
+const FillInBlankLevel = () => {
   const { id } = useLocalSearchParams();
   const levelId = String(id);
 
-  const level = useMemo(() => {
-    const levels = LISTEN_AND_FILL_CONTENT.contents["listen and fill"].levels;
-    const selected = levels[levelId] ?? levels.level_1;
-    const keys = sortQuestionKeys(Object.keys(selected));
-
-    const questions: ListenQuestion[] = keys.map((key) => selected[key]);
-
-    return {
-      id: levelId,
-      title: `Listen and Fill ${levelId.toUpperCase()}`,
-      questions,
-    };
+  const level = useMemo<FillBlankLevel | null>(() => {
+    return (
+      FILL_IN_THE_BLANK_CONTENT.contents["fill in the blank"].levels[levelId] ??
+      null
+    );
   }, [levelId]);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{
-    show: boolean;
-    correct: boolean;
-    message: string;
-  }>({ show: false, correct: false, message: "" });
-  const [completed, setCompleted] = useState(false);
+  const [pickedWord, setPickedWord] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
 
-  const [stats, setStats] = useState<SessionStats>({
-    total: level.questions.length,
-    correct: 0,
-    wrong: 0,
-    times: [],
-  });
-
-  const startRef = useRef(Date.now());
-  const currentQuestion = level.questions[currentIndex];
-
-  const accuracy = stats.total === 0 ? 0 : stats.correct / stats.total;
-  const averageTime =
-    stats.times.length === 0
-      ? 0
-      : stats.times.reduce((sum, t) => sum + t, 0) / stats.times.length;
-  const speed = clamp01((12 - averageTime) / 10);
-  const finalScore = accuracy * 70 + speed * 30;
-
-  const reset = () => {
-    setCurrentIndex(0);
-    setSelectedWord(null);
-    setFeedback({ show: false, correct: false, message: "" });
-    setCompleted(false);
-    setStats({
-      total: level.questions.length,
-      correct: 0,
-      wrong: 0,
-      times: [],
-    });
-    startRef.current = Date.now();
-  };
-
-  const handleOptionPress = (word: string) => {
-    if (!currentQuestion || feedback.show) return;
-
-    const elapsed = (Date.now() - startRef.current) / 1000;
-    const isCorrect =
-      word.toLowerCase() === currentQuestion.answer.toLowerCase();
-
-    setSelectedWord(word);
-
-    if (isCorrect) {
-      setStats((prev) => ({
-        ...prev,
-        correct: prev.correct + 1,
-        times: [...prev.times, elapsed],
-      }));
-      setFeedback({
-        show: true,
-        correct: true,
-        message: "Excellent! That fits perfectly.",
-      });
-
-      setTimeout(() => {
-        if (currentIndex >= level.questions.length - 1) {
-          setCompleted(true);
-          return;
-        }
-
-        setCurrentIndex((prev) => prev + 1);
-        setSelectedWord(null);
-        setFeedback({ show: false, correct: false, message: "" });
-        startRef.current = Date.now();
-      }, 900);
-      return;
-    }
-
-    setStats((prev) => ({ ...prev, wrong: prev.wrong + 1 }));
-    setFeedback({
-      show: true,
-      correct: false,
-      message: "Nice try. Listen again and pick another word.",
-    });
-
-    setTimeout(() => {
-      setSelectedWord(null);
-      setFeedback({ show: false, correct: false, message: "" });
-    }, 700);
-  };
-
-  if (!currentQuestion && !completed) {
+  if (!level) {
     return (
-      <GameLayout title="Listen and Fill">
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>No questions available.</Text>
+      <GameLayout title="Fill in the Blank">
+        <View style={styles.centerWrap}>
+          <Text style={styles.centerText}>Level not found.</Text>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.primaryButtonText}>Back to Levels</Text>
+            <Text style={styles.primaryButtonText}>Back</Text>
           </TouchableOpacity>
         </View>
       </GameLayout>
     );
   }
 
-  if (completed) {
-    return (
-      <GameLayout title="Level Complete">
-        <View style={styles.completeWrap}>
-          <LinearGradient
-            colors={["#3A4CA8", "#5A67D8"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.completeHero}
-          >
-            <MaterialCommunityIcons name="medal" size={72} color="#FFD86D" />
-            <Text style={styles.completeTitle}>Great Listening!</Text>
-            <Text style={styles.completeSubtitle}>{level.title} complete</Text>
-          </LinearGradient>
+  const blanks = blankKeys(level.blankParagraph);
+  const tokens = tokenizeParagraph(level.blankParagraph);
+  const usedWords = new Set(Object.values(answers));
+  const availableWords = level.choices.filter((word) => !usedWords.has(word));
 
-          <View style={styles.metricsRow}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{Math.round(finalScore)}</Text>
-              <Text style={styles.metricLabel}>Score</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>
-                {Math.round(accuracy * 100)}%
-              </Text>
-              <Text style={styles.metricLabel}>Accuracy</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{averageTime.toFixed(1)}s</Text>
-              <Text style={styles.metricLabel}>Avg Time</Text>
-            </View>
-          </View>
+  const canSubmit = blanks.every((b) => Boolean(answers[b]));
 
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Session Summary</Text>
-            <Text style={styles.summaryLine}>Questions: {stats.total}</Text>
-            <Text style={styles.summaryLine}>Correct: {stats.correct}</Text>
-            <Text style={styles.summaryLine}>
-              Wrong Attempts: {stats.wrong}
-            </Text>
-            <Text style={styles.summaryLine}>
-              Speed Score: {Math.round(speed * 100)}%
-            </Text>
-          </View>
+  const assembled = tokens
+    .map((token) => {
+      if (!token.startsWith("__")) return token;
+      return answers[token] ?? token;
+    })
+    .join("");
 
-          <TouchableOpacity style={styles.primaryButton} onPress={reset}>
-            <Text style={styles.primaryButtonText}>Play Again</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.secondaryButtonText}>Back to Levels</Text>
-          </TouchableOpacity>
-        </View>
-      </GameLayout>
-    );
-  }
+  const handleDropToBlank = (blank: string) => {
+    if (!pickedWord || submitted) return;
 
-  const revealedSentence = buildSentence(
-    currentQuestion.sentenceTemplate,
-    currentQuestion.answer,
-    Boolean(feedback.show && feedback.correct),
-  );
+    const previous = answers[blank];
+    setAnswers((prev) => ({
+      ...prev,
+      [blank]: pickedWord,
+    }));
+
+    setPickedWord(previous ?? null);
+  };
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    const ok = normalize(assembled) === normalize(level.fullParagraph);
+    setIsCorrect(ok);
+    setSubmitted(true);
+  };
+
+  const reset = () => {
+    setPickedWord(null);
+    setAnswers({});
+    setSubmitted(false);
+    setIsCorrect(false);
+  };
 
   return (
-    <GameLayout title={level.title}>
-      <View style={styles.container}>
-        <LinearGradient
-          colors={["#2E3760", "#222B4D"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.topBar}
-        >
-          <View style={styles.progressWrap}>
-            <Text style={styles.progressLabel}>
-              Question {currentIndex + 1}/{level.questions.length}
-            </Text>
-            <Progress.Bar
-              progress={(currentIndex + 1) / level.questions.length}
-              width={progressWidth}
-              color="#7FD1FF"
-              unfilledColor="rgba(255,255,255,0.2)"
-              borderWidth={0}
-              borderRadius={999}
-              height={10}
-            />
-          </View>
-
-          <View style={styles.scoreChip}>
-            <MaterialCommunityIcons
-              name="check-decagram"
-              size={20}
-              color="#A8FFBE"
-            />
-            <Text style={styles.scoreChipText}>{stats.correct}</Text>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.promptCard}>
-          <Text style={styles.promptTitle}>
-            Listen and complete the sentence
+    <GameLayout title={`Fill in Blank ${levelId.toUpperCase()}`}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <LinearGradient colors={["#2E3760", "#222B4D"]} style={styles.topCard}>
+          <Text style={styles.topTitle}>Listen First</Text>
+          <Text style={styles.topSub}>
+            Play the paragraph audio, then place words into blanks.
           </Text>
           <AudioButton
-            uri={currentQuestion.audioUrl ?? null}
-            label="Play Audio"
+            uri={level.voiceReadingLink}
+            label="Play Paragraph"
             style={styles.audioBtn}
           />
-          <Text style={styles.sentence}>{revealedSentence}</Text>
+        </LinearGradient>
+
+        <View style={styles.instructionsCard}>
+          <Text style={styles.instructionsTitle}>Drag and Drop Mode</Text>
+          <Text style={styles.instructionsText}>
+            1) Tap a word to pick it up.
+          </Text>
+          <Text style={styles.instructionsText}>
+            2) Tap a blank slot to drop it.
+          </Text>
+          <Text style={styles.instructionsText}>
+            3) Tap filled slot to replace words.
+          </Text>
         </View>
 
-        <View style={styles.optionsWrap}>
-          {currentQuestion.options.map((option) => {
-            const picked = selectedWord === option;
-            const isCorrect =
-              option.toLowerCase() === currentQuestion.answer.toLowerCase();
+        <View style={styles.paragraphCard}>
+          <Text style={styles.paragraphLabel}>Blank Paragraph</Text>
+          <View style={styles.paragraphWrap}>
+            {tokens.map((token, idx) => {
+              const isBlank = token.startsWith("__");
+              if (!isBlank) {
+                return (
+                  <Text key={`${token}-${idx}`} style={styles.paragraphText}>
+                    {token}
+                  </Text>
+                );
+              }
 
-            return (
+              const filled = answers[token];
+              return (
+                <TouchableOpacity
+                  key={token}
+                  style={[styles.blankChip, filled && styles.blankFilled]}
+                  onPress={() => handleDropToBlank(token)}
+                  disabled={submitted}
+                >
+                  <Text style={styles.blankText}>{filled || "_____"}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.wordBankCard}>
+          <Text style={styles.wordBankTitle}>Word Choices</Text>
+          <View style={styles.wordRow}>
+            {pickedWord && (
               <TouchableOpacity
-                key={option}
-                onPress={() => handleOptionPress(option)}
-                disabled={feedback.show}
-                activeOpacity={0.88}
-                style={[
-                  styles.option,
-                  feedback.show && picked && isCorrect && styles.optionGood,
-                  feedback.show && picked && !isCorrect && styles.optionBad,
-                ]}
+                style={styles.pickedWordChip}
+                onPress={() => setPickedWord(null)}
               >
-                <Text style={styles.optionText}>{option}</Text>
+                <Text style={styles.pickedWordText}>Holding: {pickedWord}</Text>
               </TouchableOpacity>
-            );
-          })}
+            )}
+
+            {availableWords.map((word) => (
+              <TouchableOpacity
+                key={word}
+                style={[
+                  styles.wordChip,
+                  pickedWord === word && styles.wordChipActive,
+                ]}
+                onPress={() => setPickedWord(word)}
+                disabled={submitted}
+              >
+                <Text style={styles.wordText}>{word}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
-        {feedback.show && (
+        <TouchableOpacity
+          style={[styles.primaryButton, !canSubmit && styles.disabledBtn]}
+          disabled={!canSubmit || submitted}
+          onPress={handleSubmit}
+        >
+          <Text style={styles.primaryButtonText}>Check Answer</Text>
+        </TouchableOpacity>
+
+        {submitted && (
           <View
-            style={[
-              styles.feedbackBox,
-              feedback.correct ? styles.feedbackGood : styles.feedbackBad,
-            ]}
+            style={[styles.feedbackCard, isCorrect ? styles.good : styles.bad]}
           >
-            <Text style={styles.feedbackText}>{feedback.message}</Text>
+            <Text style={styles.feedbackTitle}>
+              {isCorrect ? "Great job!" : "Not yet"}
+            </Text>
+            <Text style={styles.feedbackLine}>
+              {isCorrect
+                ? "You completed the paragraph correctly."
+                : "Compare and try again."}
+            </Text>
+            {!isCorrect && (
+              <Text style={styles.feedbackLine}>
+                Correct paragraph: {level.fullParagraph}
+              </Text>
+            )}
+            <TouchableOpacity style={styles.secondaryButton} onPress={reset}>
+              <Text style={styles.secondaryButtonText}>
+                {isCorrect ? "Play Again" : "Try Again"}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
-
-        <View style={styles.bottomRow}>
-          <View style={styles.bottomCard}>
-            <Text style={styles.bottomValue}>{stats.wrong}</Text>
-            <Text style={styles.bottomLabel}>Wrong</Text>
-          </View>
-          <View style={styles.bottomCard}>
-            <Text style={styles.bottomValue}>{stats.times.length}</Text>
-            <Text style={styles.bottomLabel}>Answered</Text>
-          </View>
-          <View style={styles.bottomCard}>
-            <Text style={styles.bottomValue}>
-              {level.questions.length - currentIndex - 1}
-            </Text>
-            <Text style={styles.bottomLabel}>Left</Text>
-          </View>
-        </View>
-      </View>
+      </ScrollView>
     </GameLayout>
   );
 };
 
-export default ListenAndFillGame;
+export default FillInBlankLevel;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
-  emptyText: {
+  container: { paddingBottom: 20 },
+  centerWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  centerText: {
     color: "#fff",
     fontFamily: "Poppins-Medium",
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  topBar: {
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  progressWrap: { flex: 1 },
-  progressLabel: {
-    color: "#fff",
-    marginBottom: 8,
-    fontSize: 13,
-    fontFamily: "Poppins-Medium",
-  },
-  scoreChip: {
-    marginLeft: 8,
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  scoreChipText: { color: "#fff", fontFamily: "Poppins-Bold", fontSize: 17 },
-  promptCard: {
-    backgroundColor: "#2C345A",
-    borderRadius: 18,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  promptTitle: {
-    color: "#DEE5FF",
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 14,
+    fontSize: 15,
     marginBottom: 10,
   },
-  audioBtn: {
-    backgroundColor: "#5A67D8",
-    paddingHorizontal: 16,
+  topCard: {
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 12,
   },
-  sentence: {
+  topTitle: {
     color: "#fff",
     fontFamily: "Poppins-Bold",
-    fontSize: 22,
-    textAlign: "center",
-    lineHeight: 32,
+    fontSize: 18,
+    marginBottom: 4,
   },
-  optionsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  option: {
-    width: "48.5%",
-    backgroundColor: "#2D355B",
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "transparent",
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  optionGood: { borderColor: "#33CC73", backgroundColor: "#204A37" },
-  optionBad: { borderColor: "#F36A67", backgroundColor: "#4A2D34" },
-  optionText: { color: "#fff", fontFamily: "Poppins-SemiBold", fontSize: 16 },
-  feedbackBox: {
-    marginTop: 12,
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  feedbackGood: { backgroundColor: "#2FA866" },
-  feedbackBad: { backgroundColor: "#D25151" },
-  feedbackText: { color: "#fff", fontFamily: "Poppins-SemiBold", fontSize: 14 },
-  bottomRow: { marginTop: 12, flexDirection: "row", gap: 8 },
-  bottomCard: {
-    flex: 1,
-    backgroundColor: "#2D3458",
-    borderRadius: 14,
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  bottomValue: { color: "#fff", fontSize: 18, fontFamily: "Poppins-Bold" },
-  bottomLabel: {
-    color: "#BBC0DB",
-    fontSize: 11,
-    marginTop: 2,
+  topSub: {
+    color: "#D8DEF9",
     fontFamily: "Poppins-Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 10,
   },
-  completeWrap: { flex: 1, justifyContent: "center" },
-  completeHero: {
-    borderRadius: 20,
-    alignItems: "center",
-    paddingVertical: 20,
-    marginBottom: 12,
-  },
-  completeTitle: {
-    color: "#fff",
-    fontFamily: "Poppins-Bold",
-    fontSize: 30,
-    marginTop: 8,
-  },
-  completeSubtitle: {
-    color: "rgba(255,255,255,0.9)",
-    fontFamily: "Poppins-Regular",
-    fontSize: 14,
-    marginTop: 3,
-  },
-  metricsRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
-  metricCard: {
-    flex: 1,
-    backgroundColor: "#2D3458",
-    borderRadius: 14,
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  metricValue: { color: "#fff", fontFamily: "Poppins-Bold", fontSize: 18 },
-  metricLabel: {
-    color: "#BBC0DB",
-    fontFamily: "Poppins-Regular",
-    fontSize: 11,
-    marginTop: 2,
-  },
-  summaryCard: {
-    backgroundColor: "#2D3458",
+  audioBtn: { alignSelf: "flex-start", backgroundColor: "#4F6BFF" },
+  instructionsCard: {
+    backgroundColor: "#262B52",
     borderRadius: 14,
     padding: 12,
     marginBottom: 12,
   },
-  summaryTitle: {
+  instructionsTitle: {
     color: "#fff",
     fontFamily: "Poppins-SemiBold",
     fontSize: 14,
-    marginBottom: 5,
+    marginBottom: 6,
   },
-  summaryLine: {
-    color: "#D3D7EA",
+  instructionsText: {
+    color: "#D5DBF8",
     fontFamily: "Poppins-Regular",
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 2,
   },
-  primaryButton: {
-    backgroundColor: "#5A76FF",
+  paragraphCard: {
+    backgroundColor: "#25294A",
     borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: "center",
+    padding: 12,
+    marginBottom: 12,
+  },
+  paragraphLabel: {
+    color: "#fff",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 14,
     marginBottom: 8,
   },
+  paragraphWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+  },
+  paragraphText: {
+    color: "#E2E5FF",
+    fontFamily: "Abyssinica_SIL",
+    fontSize: 20,
+    lineHeight: 30,
+  },
+  blankChip: {
+    minWidth: 72,
+    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: "#1E2443",
+    borderWidth: 1,
+    borderColor: "#6A74B6",
+  },
+  blankFilled: {
+    backgroundColor: "#364088",
+    borderColor: "#8FA4FF",
+  },
+  blankText: {
+    color: "#fff",
+    textAlign: "center",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 12,
+  },
+  wordBankCard: {
+    backgroundColor: "#25294A",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  wordBankTitle: {
+    color: "#fff",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  wordRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  wordChip: {
+    backgroundColor: "#343A6A",
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  wordChipActive: { backgroundColor: "#5A67D8" },
+  wordText: { color: "#fff", fontFamily: "Poppins-SemiBold", fontSize: 13 },
+  pickedWordChip: {
+    backgroundColor: "#4F6BFF",
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  pickedWordText: {
+    color: "#fff",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 13,
+  },
+  primaryButton: {
+    backgroundColor: "#4F6BFF",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  disabledBtn: { opacity: 0.5 },
   primaryButtonText: {
     color: "#fff",
     fontFamily: "Poppins-SemiBold",
+    fontSize: 14,
+  },
+  feedbackCard: {
+    borderRadius: 14,
+    padding: 12,
+  },
+  good: { backgroundColor: "rgba(46,139,87,0.35)" },
+  bad: { backgroundColor: "rgba(187,77,94,0.35)" },
+  feedbackTitle: {
+    color: "#fff",
+    fontFamily: "Poppins-Bold",
     fontSize: 16,
+    marginBottom: 4,
+  },
+  feedbackLine: {
+    color: "#E0E6FF",
+    fontFamily: "Poppins-Regular",
+    fontSize: 12,
+    marginBottom: 4,
   },
   secondaryButton: {
-    borderRadius: 14,
+    marginTop: 8,
+    alignSelf: "flex-start",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#7E87B2",
-    paddingVertical: 13,
-    alignItems: "center",
+    borderColor: "#99A7F2",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   secondaryButtonText: {
-    color: "#D0D5EA",
-    fontFamily: "Poppins-Medium",
-    fontSize: 15,
+    color: "#DCE2FF",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 12,
   },
 });
