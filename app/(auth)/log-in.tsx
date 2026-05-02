@@ -1,18 +1,27 @@
-import { View, Text, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import React from 'react';
-import InputField from '@/components/InputField';
-import CustomButton from '@/components/CustomButton';
-import SafeAreaComponent from '@/components/SafeAreaComponent';
-import { useAuthStore } from '@/store/authStore';
-import { loginChild, AuthApiError } from '@/services/authApi';
-import { images } from '@/const';
-import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import CustomButton from "@/components/CustomButton";
+import InputField from "@/components/InputField";
+import SafeAreaComponent from "@/components/SafeAreaComponent";
+import { images } from "@/const";
+import { AuthApiError, loginChild } from "@/services/api/auth.api";
+import { useAuthStore } from "@/store/authStore";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React from "react";
+import {
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
 
 const Login = () => {
   const { login } = useAuthStore();
-  const [username, setUsername] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const handleLogin = async () => {
@@ -21,35 +30,41 @@ const Login = () => {
       setLoading(true);
       const data = await loginChild(username, password);
       await login(data);
-      router.replace('/(root)/(tabs)/home');
+      router.replace("/(root)/(tabs)/home");
     } catch (error: unknown) {
       const message =
         error instanceof AuthApiError
           ? error.message
-          : 'Check your name or secret code again!';
-      Alert.alert('Oops!', message);
+          : "Check your name or secret code again!";
+      Alert.alert("Oops!", message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <LinearGradient colors={['#2D2D44', '#1F1F39']} style={styles.container}>
+    <LinearGradient colors={["#2D2D44", "#1F1F39"]} style={styles.container}>
       <SafeAreaComponent style={{ flex: 1 }}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboard}
         >
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
               <View style={styles.imageWrapper}>
-                <Image source={images.Logo} style={styles.image} resizeMode="contain" />
+                <Image
+                  source={images.Logo}
+                  style={styles.image}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.title}>Secret Entry</Text>
-              <Text style={styles.subtitle}>Tell us your name and secret code!</Text>
+              <Text style={styles.subtitle}>
+                Tell us your name and secret code!
+              </Text>
             </View>
 
             <View style={styles.formCard}>
@@ -59,7 +74,6 @@ const Login = () => {
                 autoCapitalize="none"
                 value={username}
                 onChangeText={setUsername}
-    
                 containerStyle={styles.inputContainer}
               />
 
@@ -101,17 +115,17 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 25,
     paddingBottom: 40,
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 30,
   },
   imageWrapper: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     padding: 20,
     borderRadius: 100,
     marginBottom: 20,
@@ -122,26 +136,26 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    fontFamily: 'Poppins-Bold', 
+    fontWeight: "800",
+    color: "#FFFFFF",
+    fontFamily: "Poppins-Bold",
   },
   subtitle: {
     fontSize: 16,
-    color: '#BABBC9',
+    color: "#BABBC9",
     marginTop: 5,
-    textAlign: 'center',
-    fontFamily: 'Poppins-Regular',
+    textAlign: "center",
+    fontFamily: "Poppins-Regular",
   },
   formCard: {
-    width: '100%',
-    backgroundColor: '#2F2F42',
+    width: "100%",
+    backgroundColor: "#2F2F42",
     padding: 25,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: "rgba(255, 255, 255, 0.1)",
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 10,
   },
@@ -152,14 +166,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
     height: 65,
     borderRadius: 20,
-    backgroundColor: '#3D5CFF',
-   
+    backgroundColor: "#3D5CFF",
+
     borderBottomWidth: 5,
-    borderBottomColor: '#263FCF',
+    borderBottomColor: "#263FCF",
   },
   buttonText: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     letterSpacing: 1,
   },
 });

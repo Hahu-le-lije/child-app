@@ -106,7 +106,6 @@ async function deleteItem(key: string) {
     try {
       globalThis?.localStorage?.removeItem(key);
     } catch {
-      // ignore
     }
     return;
   }

@@ -1,9 +1,3 @@
-/**
- * Child auth API. Set EXPO_PUBLIC_API_URL in .env (e.g. https://api.example.com).
- * Optional: EXPO_PUBLIC_AUTH_LOGIN_PATH (default /auth/login), EXPO_PUBLIC_AUTH_REFRESH_PATH (default /auth/refresh).
- * If EXPO_PUBLIC_API_URL is unset, a small dev mock is used (__DEV__ only).
- */
-
 export type AuthUser = {
   id: string;
   username: string;
@@ -20,11 +14,14 @@ export type LoginResponse = {
 
 export type RefreshResponse = {
   accessToken: string;
-  
+
   refreshToken?: string;
   expiresIn: number;
   user?: AuthUser;
 };
+
+
+export type ChildProfile = Record<string, unknown>;
 
 export class AuthApiError extends Error {
   constructor(
@@ -37,17 +34,19 @@ export class AuthApiError extends Error {
   }
 }
 
-function getApiBase(): string {
-  const raw = process.env.EXPO_PUBLIC_API_URL?.trim() ?? "";
-  return raw.replace(/\/+$/, "");
-}
-
-function loginPath(): string {
-  return process.env.EXPO_PUBLIC_AUTH_LOGIN_PATH?.trim() || "/auth/login";
-}
+const PATH_CHILD_LOGIN = "/children/login";
+const PATH_CHILD_LOGOUT = "/children/logout";
+const PATH_CHILD_ME = "/children/me";
+const PATH_CHILD_PROFILE = "/child/profile";
 
 function refreshPath(): string {
   return process.env.EXPO_PUBLIC_AUTH_REFRESH_PATH?.trim() || "/auth/refresh";
+}
+
+export function getApiBaseUrl(): string | undefined {
+  const raw = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (!raw) return undefined;
+  return raw.replace(/\/+$/, "");
 }
 
 function pickString(obj: Record<string, unknown>, ...keys: string[]): string | undefined {
@@ -126,13 +125,16 @@ async function readJson(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
-/** Merge common `{ data: { ...tokens } }` envelopes into the root object. */
 function flattenEnvelope(body: Record<string, unknown>): Record<string, unknown> {
   const inner = body.data;
   if (inner && typeof inner === "object" && !Array.isArray(inner)) {
     return { ...body, ...(inner as Record<string, unknown>) };
   }
   return body;
+}
+
+function authErrorStatus(res: Response): "auth" | "unknown" {
+  return res.status === 401 || res.status === 403 ? "auth" : "unknown";
 }
 
 async function devMockLogin(username: string, password: string): Promise<LoginResponse> {
@@ -161,7 +163,7 @@ async function devMockRefresh(token: string): Promise<RefreshResponse> {
 }
 
 export async function loginChild(username: string, password: string): Promise<LoginResponse> {
-  const base = getApiBase();
+  const base = getApiBaseUrl();
   if (!base) {
     if (__DEV__) return devMockLogin(username, password);
     throw new AuthApiError(
@@ -173,7 +175,7 @@ export async function loginChild(username: string, password: string): Promise<Lo
 
   let res: Response;
   try {
-    res = await fetch(`${base}${loginPath()}`, {
+    res = await fetch(`${base}${PATH_CHILD_LOGIN}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ username: username.trim(), password }),
@@ -187,15 +189,50 @@ export async function loginChild(username: string, password: string): Promise<Lo
     const flat = flattenEnvelope(raw);
     const msg =
       pickString(flat, "message", "error", "detail") ?? `Login failed (${res.status})`;
-    throw new AuthApiError(msg, res.status, res.status === 401 ? "auth" : "unknown");
+    throw new AuthApiError(msg, res.status, authErrorStatus(res));
   }
 
   return normalizeLoginPayload(flattenEnvelope(raw));
 }
 
 
+export async function logoutChild(accessToken: string | null | undefined): Promise<void> {
+  const token = accessToken?.trim();
+  if (!token) return;
+
+  const base = getApiBaseUrl();
+  if (!base) {
+    if (__DEV__) return;
+    throw new AuthApiError("EXPO_PUBLIC_API_URL is not set", undefined, "unknown");
+  }
+
+  try {
+    const res = await fetch(`${base}${PATH_CHILD_LOGOUT}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok && (res.status === 401 || res.status === 403)) {
+      return;
+    }
+    if (!res.ok) {
+      const raw = await readJson(res);
+      const flat = flattenEnvelope(raw);
+      const msg =
+        pickString(flat, "message", "error", "detail") ?? `Logout failed (${res.status})`;
+      throw new AuthApiError(msg, res.status, authErrorStatus(res));
+    }
+  } catch (e) {
+    if (e instanceof AuthApiError) throw e;
+    throw new AuthApiError("Network error — check connection", undefined, "network");
+  }
+}
+
 export async function refreshSessionToken(refreshTokenValue: string): Promise<RefreshResponse> {
-  const base = getApiBase();
+  const base = getApiBaseUrl();
   if (!base) {
     if (__DEV__) return devMockRefresh(refreshTokenValue);
     throw new AuthApiError("EXPO_PUBLIC_API_URL is not set", undefined, "unknown");
@@ -220,8 +257,89 @@ export async function refreshSessionToken(refreshTokenValue: string): Promise<Re
     const flat = flattenEnvelope(raw);
     const msg =
       pickString(flat, "message", "error", "detail") ?? `Refresh failed (${res.status})`;
-    throw new AuthApiError(msg, res.status, res.status === 401 ? "auth" : "unknown");
+    throw new AuthApiError(msg, res.status, authErrorStatus(res));
   }
 
   return normalizeRefreshPayload(flattenEnvelope(raw));
+}
+
+async function childAuthorizedJson(
+  path: string,
+  accessToken: string,
+  init: RequestInit = {}
+): Promise<Record<string, unknown>> {
+  const base = getApiBaseUrl();
+  if (!base) {
+    throw new AuthApiError("EXPO_PUBLIC_API_URL is not set", undefined, "unknown");
+  }
+
+  const headers = new Headers(init.headers);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
+  if (init.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  headers.set("Authorization", `Bearer ${accessToken.trim()}`);
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, { ...init, headers });
+  } catch {
+    throw new AuthApiError("Network error — check connection", undefined, "network");
+  }
+
+  const raw = await readJson(res);
+  if (!res.ok) {
+    const flat = flattenEnvelope(raw);
+    const msg =
+      pickString(flat, "message", "error", "detail") ?? `Request failed (${res.status})`;
+    throw new AuthApiError(msg, res.status, authErrorStatus(res));
+  }
+  return flattenEnvelope(raw);
+}
+
+function profileFromPayload(flat: Record<string, unknown>): ChildProfile {
+  const inner = flat.profile ?? flat.child ?? flat.user;
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    return inner as ChildProfile;
+  }
+  return flat as ChildProfile;
+}
+
+/**
+ * GET `/children/me` — current child summary (`auth:child`).
+ */
+export async function fetchChildMe(accessToken: string): Promise<AuthUser> {
+  const flat = await childAuthorizedJson(PATH_CHILD_ME, accessToken, { method: "GET" });
+  const user =
+    normalizeUser(flat) ??
+    normalizeUser(flat.user) ??
+    normalizeUser(flat.child) ??
+    normalizeUser(flat.profile) ??
+    normalizeUser(flat.data);
+  if (!user) {
+    throw new AuthApiError("Invalid /children/me response: missing user", undefined, "unknown");
+  }
+  return user;
+}
+
+/**
+ * GET `/child/profile` — full own profile (`auth:child`).
+ */
+export async function fetchChildProfile(accessToken: string): Promise<ChildProfile> {
+  const flat = await childAuthorizedJson(PATH_CHILD_PROFILE, accessToken, { method: "GET" });
+  return profileFromPayload(flat);
+}
+
+/**
+ * PATCH `/child/profile` — partial update (`auth:child`).
+ */
+export async function patchChildProfile(
+  accessToken: string,
+  patch: Record<string, unknown>
+): Promise<ChildProfile> {
+  const flat = await childAuthorizedJson(PATH_CHILD_PROFILE, accessToken, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return profileFromPayload(flat);
 }

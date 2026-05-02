@@ -1,5 +1,5 @@
 import { fetchCMSData } from "./cmsService";
-import {downloadAndCacheFile} from "./fileService";
+import {downloadAndCacheFile} from "./db/fileService";
 import { db } from "@/database/db";
 import {
     insertStory,

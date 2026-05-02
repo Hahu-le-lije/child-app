@@ -1,19 +1,20 @@
-import { create } from "zustand";
-import NetInfo from "@react-native-community/netinfo";
 import {
+  AuthApiError,
+  logoutChild,
+  refreshSessionToken,
+  type AuthUser,
+  type LoginResponse,
+} from "@/services/api/auth.api";
+import {
+  clearAuth,
   getAccessToken,
+  getRefreshToken,
   getUser,
   isTokenValid,
-  clearAuth,
   saveAuthData,
-  getRefreshToken,
-} from "@/services/authStorage";
-import {
-  refreshSessionToken,
-  AuthApiError,
-  type LoginResponse,
-  type AuthUser,
-} from "@/services/authApi";
+} from "@/services/db/authStorage";
+import NetInfo from "@react-native-community/netinfo";
+import { create } from "zustand";
 
 interface AuthState {
   user: AuthUser | null;
@@ -72,12 +73,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       data.accessToken,
       data.refreshToken,
       data.user,
-      data.expiresIn
+      data.expiresIn,
     );
     set({ user: data.user });
   },
 
   logout: async () => {
+    const token = await getAccessToken();
+    try {
+      await logoutChild(token);
+    } catch {
+      /* still clear locally; expired tokens often 401 anyway */
+    }
     await clearAuth();
     set({ user: null });
   },
@@ -102,7 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         data.accessToken,
         nextRefresh,
         nextUser,
-        data.expiresIn
+        data.expiresIn,
       );
       set({ user: nextUser });
     } catch (e) {
