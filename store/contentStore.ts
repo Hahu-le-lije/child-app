@@ -1,83 +1,85 @@
-// store/contentStore.ts
-
+import {
+  ContentApiError,
+  fetchContentPackList,
+  fetchPackDownload,
+  type ContentPackListItem,
+} from "@/services/api/content.api";
+import { getInstalledPacks } from "@/services/contentQueryService";
+import { getAccessToken, getUser } from "@/services/db/authStorage";
+import { importPackPayload, normalizePackGameType } from "@/services/packImportService";
 import { create } from "zustand";
-import {
-  getAvailableContent,
-  type ContentPackCatalogItem,
-} from "@/services/contentApi";
-import { downloadContentPack } from "@/services/contentService";
-import {
-  saveContentPack,
-  getContentPacks,
-  updateContentStatus,
-} from "@/database/contentRepository";
-import { importContentPackFromFile } from "@/database/contentImporter";
 
 interface ContentState {
-  packs: ContentPackCatalogItem[];
-  downloadedPacks: Record<string, boolean>;
-  progress: Record<string, number>;
+  packs: ContentPackListItem[];
+  downloadedSlugs: Record<string, boolean>;
+  progressSlug: string | null;
   loadContent: () => Promise<void>;
-  downloadPack: (pack: ContentPackCatalogItem) => Promise<void>;
+  downloadPack: (pack: ContentPackListItem) => Promise<void>;
 }
 
 export const useContentStore = create<ContentState>((set) => ({
   packs: [],
-  downloadedPacks: {},
-  progress: {},
+  downloadedSlugs: {},
+  progressSlug: null,
 
   loadContent: async () => {
     try {
-      const contentData = await getAvailableContent();
+      const token = await getAccessToken();
+      const user = await getUser();
+      const childId = user?.id != null ? String(user.id) : null;
 
-      const downloadedPacks = await getContentPacks();
-      const downloadedMap = downloadedPacks.reduce<Record<string, boolean>>(
-        (acc, pack) => {
-          acc[pack.id] = pack.status === "downloaded";
+      const catalog = await fetchContentPackList(token);
+
+      let installedMap: Record<string, boolean> = {};
+      if (childId) {
+        const installed = getInstalledPacks(childId) as Array<{ slug?: string }>;
+        installedMap = installed.reduce<Record<string, boolean>>((acc, row) => {
+          if (row.slug) acc[row.slug] = true;
           return acc;
-        },
-        {}
-      );
+        }, {});
+      }
 
-      set({
-        packs: contentData.contentPacks || [],
-        downloadedPacks: downloadedMap,
-      });
-
-      console.log("Content loaded:", contentData.contentPacks?.length, "packs");
+      set({ packs: catalog, downloadedSlugs: installedMap });
     } catch (error) {
-      console.error("Failed to load content:", error);
+      console.error("Failed to load content catalog:", error);
+      const message =
+        error instanceof ContentApiError
+          ? error.message
+          : "Could not reach the content server.";
+      console.warn(message);
     }
   },
 
   downloadPack: async (pack) => {
+    const user = await getUser();
+    if (!user?.id) {
+      throw new Error("Log in first to save packs for your profile.");
+    }
+    const childId = String(user.id);
+    const token = await getAccessToken();
+
+    const game = normalizePackGameType(
+      pack.gameType ?? pack.game_type ?? pack.type ?? null
+    );
+    if (!game) {
+      throw new Error(
+        `Pack "${pack.title}" is missing a recognizable game type. Ask the backend to send gameType on each pack row.`
+      );
+    }
+
+    set({ progressSlug: pack.slug });
+
     try {
-      await updateContentStatus(pack.id, "downloading").catch(() => {});
-
-      const uri = await downloadContentPack(pack.downloadUrl, pack.id, (p) => {
-        set((state) => ({
-          progress: { ...state.progress, [pack.id]: p },
-        }));
-      });
-
-      await importContentPackFromFile(uri, pack.id);
-
-      await saveContentPack(pack.id, pack.title, pack.size, uri);
+      const payload = await fetchPackDownload(pack.slug, token);
+      await importPackPayload(childId, pack.slug, game, payload, pack.title);
 
       set((state) => ({
-        downloadedPacks: { ...state.downloadedPacks, [pack.id]: true },
-        progress: Object.fromEntries(
-          Object.entries(state.progress).filter(([k]) => k !== pack.id)
-        ),
+        downloadedSlugs: { ...state.downloadedSlugs, [pack.slug]: true },
+        progressSlug: null,
       }));
     } catch (error) {
-      console.error("Download failed:", error);
-      await updateContentStatus(pack.id, "failed").catch(() => {});
-      set((state) => ({
-        progress: Object.fromEntries(
-          Object.entries(state.progress).filter(([k]) => k !== pack.id)
-        ),
-      }));
+      set({ progressSlug: null });
+      throw error;
     }
   },
 }));

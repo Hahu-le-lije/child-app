@@ -3,9 +3,21 @@ import { db } from "./db";
 export const initContentDB = () => {
   db.execSync(`
     
+    CREATE TABLE IF NOT EXISTS content_packs (
+      child_id TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      game_type TEXT NOT NULL,
+      title TEXT,
+      version TEXT,
+      downloaded_at INTEGER NOT NULL,
+      local_dir TEXT,
+      PRIMARY KEY (child_id, slug)
+    );
+
     CREATE TABLE IF NOT EXISTS stories (
       id TEXT,
       child_id TEXT,
+      level_id TEXT,
       title TEXT,
       page_count INTEGER,
       thumbnail_path TEXT,
@@ -150,5 +162,42 @@ export const initContentDB = () => {
       PRIMARY KEY (id, child_id)
     );
 
+    CREATE TABLE IF NOT EXISTS matching_levels (
+      id TEXT,
+      child_id TEXT,
+      PRIMARY KEY (id, child_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS matching_words (
+      id TEXT,
+      child_id TEXT,
+      level_id TEXT,
+      word TEXT,
+      audio_path TEXT,
+      image_path TEXT,
+      PRIMARY KEY (id, child_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS sentence_levels (
+      id TEXT,
+      child_id TEXT,
+      PRIMARY KEY (id, child_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS sentences (
+      id TEXT,
+      child_id TEXT,
+      level_id TEXT,
+      sentence TEXT,
+      words_json TEXT,
+      PRIMARY KEY (id, child_id)
+    );
+
   `);
+
+  try {
+    db.execSync(`ALTER TABLE stories ADD COLUMN level_id TEXT`);
+  } catch {
+    /* column already present */
+  }
 };
