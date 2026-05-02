@@ -68,7 +68,7 @@ export const useContentStore = create<ContentState>((set) => ({
     );
     if (!game) {
       throw new Error(
-        `Pack "${pack.title}" is missing a recognizable game type. Ask the backend to send gameType on each pack row.`,
+        `Pack "${pack.title}" has no recognized game_type. Check the catalog row from the server.`,
       );
     }
 
@@ -76,7 +76,20 @@ export const useContentStore = create<ContentState>((set) => ({
 
     try {
       const payload = await fetchPackDownload(pack.slug, token);
-      await importPackPayload(childId, pack.slug, game, payload, pack.title);
+      const catalogVersion =
+        pack.version ??
+        (pack.latest_published_version != null
+          ? String(pack.latest_published_version)
+          : undefined);
+
+      await importPackPayload(
+        childId,
+        pack.slug,
+        game,
+        payload,
+        pack.title,
+        catalogVersion,
+      );
 
       set((state) => ({
         downloadedSlugs: { ...state.downloadedSlugs, [pack.slug]: true },

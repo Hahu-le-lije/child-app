@@ -136,12 +136,14 @@ const Content = () => {
 
   const renderItem = ({ item }: { item: ContentPackListItem }) => {
     const itemStatus = getItemStatus(item);
-    const gameLabel = item.gameType ?? item.game_type ?? item.type ?? "game";
+    const gameLabel = item.game_type ?? item.gameType ?? item.type ?? "game";
+    const thumb = item.thumbnail_url ?? item.thumbnail;
+    const sizeLabel = item.size_mb ?? item.sizeMb;
 
     return (
       <View style={styles.card}>
-        {item.thumbnail ? (
-          <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={styles.thumbnail} />
         ) : (
           <View style={styles.iconBox}>
             <MaterialCommunityIcons
@@ -155,8 +157,8 @@ const Content = () => {
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.description}>{item.description ?? ""}</Text>
           <View style={styles.packInfo}>
-            {item.sizeMb != null ? (
-              <Text style={styles.size}>{item.sizeMb} MB</Text>
+            {sizeLabel != null ? (
+              <Text style={styles.size}>{sizeLabel} MB</Text>
             ) : null}
             <Text style={styles.gameType}>{gameLabel}</Text>
           </View>

@@ -680,6 +680,8 @@ export async function importPackPayload(
   game: GameTypeKey,
   payload: unknown,
   catalogTitle?: string,
+  /** Laravel `latest_published_version` when download JSON has no version. */
+  catalogVersion?: string | null,
 ): Promise<void> {
   const root =
     payload && typeof payload === "object"
@@ -722,16 +724,21 @@ export async function importPackPayload(
         throw new Error(`Unsupported pack game type: ${game}`);
     }
 
+    const versionRecorded =
+      typeof root.version === "string"
+        ? root.version
+        : typeof contents.version === "string"
+          ? (contents.version as string)
+          : catalogVersion != null && String(catalogVersion).trim() !== ""
+            ? String(catalogVersion)
+            : null;
+
     saveContentPackRecord(
       childId,
       packSlug,
       game,
       catalogTitle ?? packSlug,
-      typeof root.version === "string"
-        ? root.version
-        : typeof contents.version === "string"
-          ? (contents.version as string)
-          : null,
+      versionRecorded,
       packRootDir(childId, packSlug),
     );
     db.execSync("COMMIT");
