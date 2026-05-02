@@ -4,13 +4,15 @@ import { useFonts } from 'expo-font'
 import { useAuthStore } from '@/store/authStore'
 import * as SplashScreen from 'expo-splash-screen';
 import { initContentDB } from '@/database/contentDb';
+import { initChildDataDB } from '@/database/childDatadb';
+import { performSync, startSyncListener, stopSyncListener } from '@/services/sync/syncManager';
 
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
 
-  const { loading, checkAuthOnStart } = useAuthStore();
+  const { loading, checkAuthOnStart, user } = useAuthStore();
 
   const [loaded] = useFonts({
     "Poppins-Regular": require("../assets/fonts/Poppins/Poppins-Regular.ttf"),
@@ -23,9 +25,21 @@ export default function RootLayout() {
   useEffect(() => {
     checkAuthOnStart();
     initContentDB();
-    console.log("content database ready")
+    initChildDataDB();
+
+    console.log(" databases ready")
+    
+    
   }, [checkAuthOnStart]);
 
+  useEffect(()=>{
+    if(!user) return;
+    startSyncListener();
+    performSync();
+    return ()=>{
+      stopSyncListener();
+    }
+  },[user])
   useEffect(() => {
     if (loaded && !loading) {
       SplashScreen.hideAsync();

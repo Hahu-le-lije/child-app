@@ -1,9 +1,11 @@
 import { db } from "@/database/db";
-export const insertStory=(story:any)=>{
+export const insertStory=(child_id:string,story:any)=>{
+  
     db.runSync(
         `
             INSERT OR REPLACE INTO stories(
                 id,
+                child_id,
                 title,
                 page_count,
                 thumbnail_path
@@ -11,21 +13,24 @@ export const insertStory=(story:any)=>{
         `,
         [
             story.id,
+            child_id,
             story.title,
             story.pagecount,
             story.thumbnail_path
         ]
     )
 }
-export const insertStoryPage=(page:any)=>{
+export const insertStoryPage=(child_id:string,page:any)=>{
     db.runSync(`
         INSERT INTO story_pages(
+        child_id,
         story_id,
         page_number,
         story_text,
         image_path
         )VALUES(?,?,?,?)`,
         [
+            child_id,
             page.story_id,
             page.page_number,
             page.story_text,
@@ -34,10 +39,11 @@ export const insertStoryPage=(page:any)=>{
     )
 }
 
-export const insertStoryQuestion=(question:any)=>{
+export const insertStoryQuestion=(child_id:string,question:any)=>{
     const result=db.runSync(`
         INSERT INTO story_questions(
             story_id,
+            child_id,
             question_text,
             correct_answer
         )VALUES(?,?,?)
