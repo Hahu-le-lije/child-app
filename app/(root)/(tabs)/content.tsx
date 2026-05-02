@@ -75,7 +75,7 @@ const Content = () => {
       const rows = getInstalledPacks(String(user.id)) as Array<{
         slug: string;
         title: string | null;
-       []game_type: string;
+       game_type: string;
         downloaded_at: number;
       }>;
       const lines =

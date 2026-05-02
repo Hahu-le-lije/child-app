@@ -23,6 +23,11 @@ const SpeakUP = () => {
   return (
     <GameLayout title="SpeakUP">
       <View style={styles.container}>
+        <TouchableOpacity style={styles.card}
+        onPress={()=>router.push(`/(root)/speakup/${2}`)}
+        >
+          <Text style={styles.title}>test button</Text>
+        </TouchableOpacity>
         <FlatList
           data={levels}
           keyExtractor={(item) => item.id}

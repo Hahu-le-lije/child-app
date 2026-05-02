@@ -7,7 +7,7 @@ import { useSpeechScoring } from '@/services/gaming/useSpeechScoring';
 const Speakup = () => {
   const router=useRouter()
   
-  const {startRecording, stopAndScore,isAnalyzing,lastScore} = useSpeechScoring();
+  const { recordForThreeSecondsAndScore, isAnalyzing, lastScore } = useSpeechScoring();
 
   const pronunciationData = {
     levels: {
@@ -23,15 +23,12 @@ const Speakup = () => {
 
   const playPronunciation = () => {
     
+    // Keeping this local (no audioService dependency). If you want, we can wire expo-av here.
     console.log('Playing:', currentGame.audioUrl);
   };
 
-  const handlePressIn =async () => {
-    await startRecording();
-  };
-
-  const handlePressOUt = async () => {
-    await stopAndScore(currentGame.word);
+  const handlePress = async () => {
+    await recordForThreeSecondsAndScore(currentGame.word);
   };
 
   return (
@@ -84,8 +81,7 @@ const Speakup = () => {
           </Text>
 
           <TouchableOpacity 
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOUt}
+            onPress={handlePress}
             disabled={isAnalyzing}
             style={[
               styles.recordButton,
@@ -107,7 +103,7 @@ const Speakup = () => {
             </View>
           </TouchableOpacity>
           
-          <Text style={styles.timerNote}>Release to submit</Text>
+          <Text style={styles.timerNote}>Records ~3 seconds then submits</Text>
         </View>
       </View>
     </SafeAreaView>
