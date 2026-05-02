@@ -1,12 +1,15 @@
 import {
-  ContentApiError,
-  fetchContentPackList,
-  fetchPackDownload,
-  type ContentPackListItem,
+    ContentApiError,
+    fetchContentPackList,
+    fetchPackDownload,
+    type ContentPackListItem,
 } from "@/services/api/content.api";
-import { getInstalledPacks } from "@/services/contentQueryService";
+import { getInstalledPacks } from "@/services/cms/contentQueryService";
 import { getAccessToken, getUser } from "@/services/db/authStorage";
-import { importPackPayload, normalizePackGameType } from "@/services/packImportService";
+import {
+    importPackPayload,
+    normalizePackGameType,
+} from "@/services/cms/packImportService";
 import { create } from "zustand";
 
 interface ContentState {
@@ -32,7 +35,9 @@ export const useContentStore = create<ContentState>((set) => ({
 
       let installedMap: Record<string, boolean> = {};
       if (childId) {
-        const installed = getInstalledPacks(childId) as Array<{ slug?: string }>;
+        const installed = getInstalledPacks(childId) as Array<{
+          slug?: string;
+        }>;
         installedMap = installed.reduce<Record<string, boolean>>((acc, row) => {
           if (row.slug) acc[row.slug] = true;
           return acc;
@@ -59,11 +64,11 @@ export const useContentStore = create<ContentState>((set) => ({
     const token = await getAccessToken();
 
     const game = normalizePackGameType(
-      pack.gameType ?? pack.game_type ?? pack.type ?? null
+      pack.gameType ?? pack.game_type ?? pack.type ?? null,
     );
     if (!game) {
       throw new Error(
-        `Pack "${pack.title}" is missing a recognizable game type. Ask the backend to send gameType on each pack row.`
+        `Pack "${pack.title}" is missing a recognizable game type. Ask the backend to send gameType on each pack row.`,
       );
     }
 

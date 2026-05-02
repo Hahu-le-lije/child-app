@@ -1,14 +1,14 @@
+import GameLayout from "@/components/GameLayout";
+import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { router } from "expo-router";
-import GameLayout from "@/components/GameLayout";
-import { getLevelsForGame } from "@/services/gameContentService";
 
 type StoryLevel = {
   id: string;

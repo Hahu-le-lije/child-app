@@ -1,5 +1,5 @@
+import * as Q from "@/services/cms/contentQueryService";
 import { getUser } from "@/services/db/authStorage";
-import * as Q from "@/services/contentQueryService";
 
 export type GameTypeKey =
   | "story"
@@ -35,7 +35,9 @@ export async function getLevelsForGame(game: GameTypeKey) {
     case "story":
       return Q.getStoryLevelSummaries(childId);
     case "matching": {
-      const rows = Q.getMatchingLevels(childId) as Array<Record<string, unknown>>;
+      const rows = Q.getMatchingLevels(childId) as Array<
+        Record<string, unknown>
+      >;
       return rows.map((r, i) => ({
         id: String(r.id),
         level_number: i + 1,
@@ -55,7 +57,9 @@ export async function getLevelsForGame(game: GameTypeKey) {
       }));
     }
     case "sentence_building": {
-      const rows = Q.getSentenceLevels(childId) as Array<Record<string, unknown>>;
+      const rows = Q.getSentenceLevels(childId) as Array<
+        Record<string, unknown>
+      >;
       return rows.map((r, i) => ({
         id: String(r.id),
         level_number: i + 1,
@@ -65,7 +69,9 @@ export async function getLevelsForGame(game: GameTypeKey) {
       }));
     }
     case "pronunciation": {
-      const rows = Q.getPronunciationLevels(childId) as Array<Record<string, unknown>>;
+      const rows = Q.getPronunciationLevels(childId) as Array<
+        Record<string, unknown>
+      >;
       return rows.map((r, i) => ({
         id: String(r.id),
         level_number: i + 1,
@@ -75,7 +81,9 @@ export async function getLevelsForGame(game: GameTypeKey) {
       }));
     }
     case "picture": {
-      const rows = Q.getPictureLevels(childId) as Array<Record<string, unknown>>;
+      const rows = Q.getPictureLevels(childId) as Array<
+        Record<string, unknown>
+      >;
       return rows.map((r, i) => ({
         id: String(r.id),
         level_number: i + 1,
@@ -95,7 +103,9 @@ export async function getLevelsForGame(game: GameTypeKey) {
       }));
     }
     case "word_builder": {
-      const rows = Q.getWordBuilderLevels(childId) as Array<Record<string, unknown>>;
+      const rows = Q.getWordBuilderLevels(childId) as Array<
+        Record<string, unknown>
+      >;
       return rows.map((r, i) => ({
         id: String(r.id),
         level_number: i + 1,
@@ -119,7 +129,10 @@ export async function getLevelsForGame(game: GameTypeKey) {
   }
 }
 
-export async function getGameContent(game: GameTypeKey, levelId: string): Promise<unknown[]> {
+export async function getGameContent(
+  game: GameTypeKey,
+  levelId: string,
+): Promise<unknown[]> {
   const childId = await resolveChildId();
   if (!childId) return [];
 
@@ -131,7 +144,9 @@ export async function getGameContent(game: GameTypeKey, levelId: string): Promis
         thumbnail_path: string | null;
       }>;
       return stories.map((s) => {
-        const pages = Q.getStoryPages(childId, s.id) as Array<{ story_text: string }>;
+        const pages = Q.getStoryPages(childId, s.id) as Array<{
+          story_text: string;
+        }>;
         const content = pages.map((p) => p.story_text).join("\n\n");
         const qs = Q.getStoryQuestions(childId, s.id) as Array<{
           question_text: string;
@@ -143,7 +158,7 @@ export async function getGameContent(game: GameTypeKey, levelId: string): Promis
             question: q.question_text,
             options: q.choices,
             correct_answer: q.correct_answer,
-          }))
+          })),
         );
         return {
           id: s.id,
@@ -181,7 +196,7 @@ export async function getGameContent(game: GameTypeKey, levelId: string): Promis
       const row = rows.find((r) => r.id === levelId);
       if (!row) return [];
       const choices = Q.getFillChoices(childId, levelId).map(
-        (c: { choice: string }) => c.choice
+        (c: { choice: string }) => c.choice,
       );
       return [
         {

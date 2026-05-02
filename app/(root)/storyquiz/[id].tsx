@@ -1,19 +1,19 @@
+import GameLayout from "@/components/GameLayout";
+import { getGameContent } from "@/services/cms/gameContentService";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Dimensions,
-  ScrollView,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
 import * as Progress from "react-native-progress";
-import { LinearGradient } from "expo-linear-gradient";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import GameLayout from "@/components/GameLayout";
-import { getGameContent } from "@/services/gameContentService";
 
 type StoryQuestionRow = {
   question: string;

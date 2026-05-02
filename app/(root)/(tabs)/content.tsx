@@ -16,7 +16,7 @@ import {
   type ContentPackListItem,
 } from "@/services/api/content.api";
 import { useContentStore } from "@/store/contentStore";
-import { getInstalledPacks } from "@/services/contentQueryService";
+import { getInstalledPacks } from "@/services/cms/contentQueryService";
 import { getUser } from "@/services/db/authStorage";
 
 async function getDeviceStorage(): Promise<{ free: number; total: number }> {
@@ -25,7 +25,9 @@ async function getDeviceStorage(): Promise<{ free: number; total: number }> {
       getFreeDiskStorageAsync?: () => Promise<number>;
       getTotalDiskCapacityAsync?: () => Promise<number>;
     };
-    const free = fs.getFreeDiskStorageAsync ? await fs.getFreeDiskStorageAsync() : 0;
+    const free = fs.getFreeDiskStorageAsync
+      ? await fs.getFreeDiskStorageAsync()
+      : 0;
     const total = fs.getTotalDiskCapacityAsync
       ? await fs.getTotalDiskCapacityAsync()
       : 0;
@@ -73,7 +75,7 @@ const Content = () => {
       const rows = getInstalledPacks(String(user.id)) as Array<{
         slug: string;
         title: string | null;
-        game_type: string;
+       []game_type: string;
         downloaded_at: number;
       }>;
       const lines =
@@ -82,7 +84,7 @@ const Content = () => {
           : rows
               .map(
                 (r) =>
-                  `• ${r.title ?? r.slug} (${r.game_type}) — ${new Date(r.downloaded_at).toLocaleString()}`
+                  `• ${r.title ?? r.slug} (${r.game_type}) — ${new Date(r.downloaded_at).toLocaleString()}`,
               )
               .join("\n");
       Alert.alert("Installed packs", lines);
@@ -100,13 +102,16 @@ const Content = () => {
       }/`;
       const dirInfo = await FileSystem.getInfoAsync(base);
       if (!dirInfo.exists) {
-        Alert.alert("Content folder", user?.id ? "No downloads yet." : "Sign in first.");
+        Alert.alert(
+          "Content folder",
+          user?.id ? "No downloads yet." : "Sign in first.",
+        );
         return;
       }
       const names = await FileSystem.readDirectoryAsync(base);
       Alert.alert(
         "Downloaded folders",
-        names.length ? names.join(", ") : "Empty"
+        names.length ? names.join(", ") : "Empty",
       );
     } catch (error) {
       console.error(error);
@@ -131,8 +136,7 @@ const Content = () => {
 
   const renderItem = ({ item }: { item: ContentPackListItem }) => {
     const itemStatus = getItemStatus(item);
-    const gameLabel =
-      item.gameType ?? item.game_type ?? item.type ?? "game";
+    const gameLabel = item.gameType ?? item.game_type ?? item.type ?? "game";
 
     return (
       <View style={styles.card}>
@@ -171,11 +175,7 @@ const Content = () => {
         )}
         {itemStatus.status === "available" && (
           <TouchableOpacity onPress={() => void handleDownload(item)}>
-            <Ionicons
-              name="cloud-download-outline"
-              size={26}
-              color="#5D5FEF"
-            />
+            <Ionicons name="cloud-download-outline" size={26} color="#5D5FEF" />
           </TouchableOpacity>
         )}
       </View>
@@ -204,7 +204,10 @@ const Content = () => {
       </View>
 
       <View style={styles.debugContainer}>
-        <TouchableOpacity onPress={checkInstalledPacks} style={styles.debugButton}>
+        <TouchableOpacity
+          onPress={checkInstalledPacks}
+          style={styles.debugButton}
+        >
           <Text style={styles.debugButtonText}>Saved packs</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={listPackFolders} style={styles.debugButton}>
@@ -223,11 +226,16 @@ const Content = () => {
 
       {packs.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="package-variant" size={60} color="#3F3F5F" />
+          <MaterialCommunityIcons
+            name="package-variant"
+            size={60}
+            color="#3F3F5F"
+          />
           <Text style={styles.emptyText}>No content packs from the server</Text>
           <Text style={styles.emptyHint}>
-            Set EXPO_PUBLIC_API_URL so the app can reach GET /api/content/packs (JSON list).
-            Override the path prefix with EXPO_PUBLIC_CONTENT_ROOT if your server differs.
+            Set EXPO_PUBLIC_API_URL so the app can reach GET /api/content/packs
+            (JSON list). Override the path prefix with EXPO_PUBLIC_CONTENT_ROOT
+            if your server differs.
           </Text>
           <TouchableOpacity onPress={loadData} style={styles.retryButton}>
             <Text style={styles.retryText}>Retry</Text>

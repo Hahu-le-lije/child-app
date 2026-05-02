@@ -1,33 +1,33 @@
 import { db } from "@/database/db";
 import {
-  clearPackGameData,
-  insertFidelLevel,
-  insertFidelQuestion,
-  insertFillChoice,
-  insertFillLevel,
-  insertLetter,
-  insertMatchingLevel,
-  insertMatchingWord,
-  insertPictureImage,
-  insertPictureLevel,
-  insertPictureQuestion,
-  insertPronunciation,
-  insertSentence,
-  insertSentenceLevel,
-  insertStory,
-  insertStoryChoice,
-  insertStoryPage,
-  insertStoryQuestion,
-  insertVoiceChoice,
-  insertVoiceLevel,
-  insertWord,
-  insertWordBuilderLevel,
-  insertWordHint,
-  packScopedId,
-  saveContentPackRecord,
-} from "@/services/dbContentService";
+    clearPackGameData,
+    insertFidelLevel,
+    insertFidelQuestion,
+    insertFillChoice,
+    insertFillLevel,
+    insertLetter,
+    insertMatchingLevel,
+    insertMatchingWord,
+    insertPictureImage,
+    insertPictureLevel,
+    insertPictureQuestion,
+    insertPronunciation,
+    insertSentence,
+    insertSentenceLevel,
+    insertStory,
+    insertStoryChoice,
+    insertStoryPage,
+    insertStoryQuestion,
+    insertVoiceChoice,
+    insertVoiceLevel,
+    insertWord,
+    insertWordBuilderLevel,
+    insertWordHint,
+    packScopedId,
+    saveContentPackRecord,
+} from "@/services/cms/dbContentService";
+import type { GameTypeKey } from "@/services/cms/gameContentService";
 import { downloadPackAsset, packRootDir } from "@/services/db/fileService";
-import type { GameTypeKey } from "@/services/gameContentService";
 
 function randomKey(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -86,9 +86,10 @@ export function normalizePackGameType(raw?: string | null): GameTypeKey | null {
 async function importStories(
   childId: string,
   packSlug: string,
-  contents: Record<string, unknown>
+  contents: Record<string, unknown>,
 ) {
-  const storyRoot = (contents.story as Record<string, unknown> | undefined) ?? {};
+  const storyRoot =
+    (contents.story as Record<string, unknown> | undefined) ?? {};
   const stories = storyRoot.stories as Record<string, unknown> | undefined;
   const storyMap =
     stories && typeof stories === "object"
@@ -160,7 +161,11 @@ async function importStories(
   }
 }
 
-async function importPicture(childId: string, packSlug: string, contents: Record<string, unknown>) {
+async function importPicture(
+  childId: string,
+  packSlug: string,
+  contents: Record<string, unknown>,
+) {
   const block =
     (contents["picture to word"] as Record<string, unknown> | undefined) ??
     (contents.picture_to_word as Record<string, unknown> | undefined);
@@ -205,7 +210,11 @@ async function importPicture(childId: string, packSlug: string, contents: Record
   }
 }
 
-async function importTracing(childId: string, packSlug: string, contents: Record<string, unknown>) {
+async function importTracing(
+  childId: string,
+  packSlug: string,
+  contents: Record<string, unknown>,
+) {
   const block =
     (contents["fidel tracing"] as Record<string, unknown> | undefined) ??
     (contents.fidel_tracing as Record<string, unknown> | undefined);
@@ -239,7 +248,12 @@ async function importTracing(childId: string, packSlug: string, contents: Record
         : "";
 
       const audioPath = pronunciation
-        ? await downloadPackAsset(pronunciation, childId, packSlug, "audio/fidel")
+        ? await downloadPackAsset(
+            pronunciation,
+            childId,
+            packSlug,
+            "audio/fidel",
+          )
         : "";
 
       insertFidelQuestion(childId, {
@@ -252,7 +266,11 @@ async function importTracing(childId: string, packSlug: string, contents: Record
   }
 }
 
-async function importWordBuilder(childId: string, packSlug: string, contents: Record<string, unknown>) {
+async function importWordBuilder(
+  childId: string,
+  packSlug: string,
+  contents: Record<string, unknown>,
+) {
   const block =
     (contents["word builder"] as Record<string, unknown> | undefined) ??
     (contents.word_builder as Record<string, unknown> | undefined);
@@ -300,13 +318,17 @@ async function importWordBuilder(childId: string, packSlug: string, contents: Re
       insertWordHint(
         childId,
         wordRef.includes("__") ? wordRef : packScopedId(packSlug, wordRef),
-        String(h.hinttext ?? h.hint_text ?? "")
+        String(h.hinttext ?? h.hint_text ?? ""),
       );
     }
   }
 }
 
-async function importFill(childId: string, packSlug: string, contents: Record<string, unknown>) {
+async function importFill(
+  childId: string,
+  packSlug: string,
+  contents: Record<string, unknown>,
+) {
   const block =
     (contents["fill in the blank"] as Record<string, unknown> | undefined) ??
     (contents.fill_in_the_blank as Record<string, unknown> | undefined) ??
@@ -333,7 +355,7 @@ async function importFill(childId: string, packSlug: string, contents: Record<st
       id: lid,
       full: String(level["full paragraph"] ?? level.fullparagraph ?? ""),
       blank: String(
-        level["blank space paragraph"] ?? level.blankspaceparagraph ?? ""
+        level["blank space paragraph"] ?? level.blankspaceparagraph ?? "",
       ),
       audio: audioPath,
     });
@@ -350,7 +372,7 @@ async function importFill(childId: string, packSlug: string, contents: Record<st
 async function importPronunciation(
   childId: string,
   packSlug: string,
-  contents: Record<string, unknown>
+  contents: Record<string, unknown>,
 ) {
   const block =
     (contents.pronouncation as Record<string, unknown> | undefined) ??
@@ -381,15 +403,35 @@ async function importPronunciation(
     insertPronunciation(childId, {
       id: lid,
       word: String(level.word ?? ""),
-      audio: audioUrl ? await downloadPackAsset(audioUrl, childId, packSlug, "audio/pronunciation") : "",
-      image: imageUrl ? await downloadPackAsset(imageUrl, childId, packSlug, "images/pronunciation") : "",
+      audio: audioUrl
+        ? await downloadPackAsset(
+            audioUrl,
+            childId,
+            packSlug,
+            "audio/pronunciation",
+          )
+        : "",
+      image: imageUrl
+        ? await downloadPackAsset(
+            imageUrl,
+            childId,
+            packSlug,
+            "images/pronunciation",
+          )
+        : "",
     });
   }
 }
 
-async function importVoice(childId: string, packSlug: string, contents: Record<string, unknown>) {
+async function importVoice(
+  childId: string,
+  packSlug: string,
+  contents: Record<string, unknown>,
+) {
   const block =
-    (contents["voice/fidel to word game"] as Record<string, unknown> | undefined) ??
+    (contents["voice/fidel to word game"] as
+      | Record<string, unknown>
+      | undefined) ??
     (contents.voice_to_word as Record<string, unknown> | undefined);
 
   const levels = block?.levels as Record<string, unknown> | undefined;
@@ -414,7 +456,7 @@ async function importVoice(childId: string, packSlug: string, contents: Record<s
       audio: audioPath,
       correct_word_id: packScopedId(
         packSlug,
-        String(level.correctwordid ?? level.correct_word_id ?? "")
+        String(level.correctwordid ?? level.correct_word_id ?? ""),
       ),
     });
 
@@ -435,7 +477,7 @@ async function importVoice(childId: string, packSlug: string, contents: Record<s
 async function importMatchingFlat(
   childId: string,
   packSlug: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ) {
   const words = payload.words as Array<Record<string, unknown>> | undefined;
   if (!Array.isArray(words)) return;
@@ -456,8 +498,12 @@ async function importMatchingFlat(
         id: packScopedId(packSlug, wid),
         level_id: lid,
         word: String(w.word ?? ""),
-        audio_path: au ? await downloadPackAsset(au, childId, packSlug, "audio/matching") : "",
-        image_path: iu ? await downloadPackAsset(iu, childId, packSlug, "images/matching") : "",
+        audio_path: au
+          ? await downloadPackAsset(au, childId, packSlug, "audio/matching")
+          : "",
+        image_path: iu
+          ? await downloadPackAsset(iu, childId, packSlug, "images/matching")
+          : "",
       });
     }
   }
@@ -466,7 +512,7 @@ async function importMatchingFlat(
 async function importMatchingNested(
   childId: string,
   packSlug: string,
-  block: Record<string, unknown>
+  block: Record<string, unknown>,
 ) {
   const levels = block.levels as Record<string, unknown> | undefined;
   if (!levels) return;
@@ -486,14 +532,22 @@ async function importMatchingNested(
         id: packScopedId(packSlug, wid),
         level_id: lid,
         word: String(w.word ?? ""),
-        audio_path: au ? await downloadPackAsset(au, childId, packSlug, "audio/matching") : "",
-        image_path: iu ? await downloadPackAsset(iu, childId, packSlug, "images/matching") : "",
+        audio_path: au
+          ? await downloadPackAsset(au, childId, packSlug, "audio/matching")
+          : "",
+        image_path: iu
+          ? await downloadPackAsset(iu, childId, packSlug, "images/matching")
+          : "",
       });
     }
   }
 }
 
-async function importMatching(childId: string, packSlug: string, contents: Record<string, unknown>) {
+async function importMatching(
+  childId: string,
+  packSlug: string,
+  contents: Record<string, unknown>,
+) {
   const nested =
     (contents.matching as Record<string, unknown> | undefined) ??
     (contents.fidel_match as Record<string, unknown> | undefined);
@@ -508,7 +562,7 @@ async function importMatching(childId: string, packSlug: string, contents: Recor
 async function importSentenceNested(
   childId: string,
   packSlug: string,
-  block: Record<string, unknown>
+  block: Record<string, unknown>,
 ) {
   const levels = block.levels as Record<string, unknown> | undefined;
   if (!levels) return;
@@ -540,9 +594,11 @@ async function importSentenceNested(
 async function importSentenceFlat(
   childId: string,
   packSlug: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ) {
-  const sentences = payload.sentences as Array<Record<string, unknown>> | undefined;
+  const sentences = payload.sentences as
+    | Array<Record<string, unknown>>
+    | undefined;
   if (!Array.isArray(sentences)) return;
   const byLevel = new Map<string, typeof sentences>();
 
@@ -575,7 +631,9 @@ async function importSentenceFlat(
         Array.isArray(payload.sentences)
       ) {
         const sw = payload.sentence_words as Array<Record<string, unknown>>;
-        const linked = sw.filter((x) => String(x.sentence_id ?? "") === String(s.id));
+        const linked = sw.filter(
+          (x) => String(x.sentence_id ?? "") === String(s.id),
+        );
         if (linked.length && !wordsPayload) {
           wordsPayload = linked;
         }
@@ -594,7 +652,7 @@ async function importSentenceBuilding(
   childId: string,
   packSlug: string,
   contents: Record<string, unknown>,
-  rootPayload: Record<string, unknown>
+  rootPayload: Record<string, unknown>,
 ) {
   const nested =
     contents.sentence_building ??
@@ -606,7 +664,11 @@ async function importSentenceBuilding(
     typeof nested === "object" &&
     (nested as Record<string, unknown>).levels
   ) {
-    await importSentenceNested(childId, packSlug, nested as Record<string, unknown>);
+    await importSentenceNested(
+      childId,
+      packSlug,
+      nested as Record<string, unknown>,
+    );
     return;
   }
   await importSentenceFlat(childId, packSlug, rootPayload);
@@ -617,9 +679,12 @@ export async function importPackPayload(
   packSlug: string,
   game: GameTypeKey,
   payload: unknown,
-  catalogTitle?: string
+  catalogTitle?: string,
 ): Promise<void> {
-  const root = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const root =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : {};
   const contents = extractContents(payload);
   clearPackGameData(childId, packSlug);
 
@@ -667,7 +732,7 @@ export async function importPackPayload(
         : typeof contents.version === "string"
           ? (contents.version as string)
           : null,
-      packRootDir(childId, packSlug)
+      packRootDir(childId, packSlug),
     );
     db.execSync("COMMIT");
   } catch (e) {

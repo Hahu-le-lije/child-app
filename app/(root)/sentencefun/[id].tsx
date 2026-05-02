@@ -1,17 +1,17 @@
+import GameLayout from "@/components/GameLayout";
+import { getGameContent } from "@/services/cms/gameContentService";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
+    Dimensions,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Progress from "react-native-progress";
-import GameLayout from "@/components/GameLayout";
-import { getGameContent } from "@/services/gameContentService";
 
 type SentenceWord = {
   word: string;
