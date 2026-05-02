@@ -1,18 +1,18 @@
-import React, { useState, } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
 import { COLORS,  FONTS,  } from '@/const';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSpeechScoring } from '@/services/gaming/useSpeechScoring';
 const Speakup = () => {
   const router=useRouter()
-  const [isRecording, setIsRecording] = useState(false);
-  const [isGrading, setIsGrading] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  
+  const {startRecording, stopAndScore,isAnalyzing,lastScore} = useSpeechScoring();
 
   const pronunciationData = {
     levels: {
       level1: {
-        word: "Cat",
+        word: "ድመት",
         audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
         imageUrl: "https://picsum.photos/id/237/600/400"
       }
@@ -26,24 +26,12 @@ const Speakup = () => {
     console.log('Playing:', currentGame.audioUrl);
   };
 
-  const handleRecord = () => {
-    setIsRecording(true);
-    setFeedback(null);
-
-    
-    setTimeout(() => {
-      setIsRecording(false);
-      simulateGrading();
-    }, 3000);
+  const handlePressIn =async () => {
+    await startRecording();
   };
 
-  const simulateGrading = () => {
-    setIsGrading(true);
-    
-    setTimeout(() => {
-      setIsGrading(false);
-      setFeedback("Excellent"); 
-    }, 1500);
+  const handlePressOUt = async () => {
+    await stopAndScore(currentGame.word);
   };
 
   return (
@@ -76,38 +64,50 @@ const Speakup = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Word Display */}
+      
         <View style={styles.wordSection}>
           <Text style={styles.wordText}>{currentGame.word}</Text>
-          {feedback && <Text style={styles.feedbackText}>{feedback}</Text>}
+          {lastScore !== null && (
+            <Text style={[
+              styles.feedbackText, 
+              { color: lastScore > 70 ? '#4ADE80' : '#FB923C' }
+            ]}>
+              {lastScore > 70 ? "Excellent! 🌟" : "Keep Trying! 💪"} ({lastScore}%)
+            </Text>
+          )}
         </View>
 
-        {/* Action Section */}
+    
         <View style={styles.actionSection}>
           <Text style={styles.instruction}>
-            {isRecording ? "Listening..." : "Tap and say the word"}
+            {isAnalyzing ? "Listening..." : "Tap and say the word"}
           </Text>
 
           <TouchableOpacity 
-            onPress={handleRecord}
-            disabled={isRecording || isGrading}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOUt}
+            disabled={isAnalyzing}
             style={[
               styles.recordButton,
-              isRecording && styles.recordingActive
+              isAnalyzing&& {opacity:0.5}
             ]}
           >
             <View style={styles.recordOuter}>
-              <View style={[styles.recordInner, isRecording && styles.innerSquare]}>
+              <View style={[styles.recordInner]}>
+                {isAnalyzing ? (
+                  <ActivityIndicator  color="#fff" />
+                ):(
                 <Ionicons 
-                  name={isGrading ? "sync" : "mic"} 
+                  name="mic" 
                   size={40} 
                   color="#fff" 
-                />
+                />)
+                }
               </View>
             </View>
           </TouchableOpacity>
           
-          <Text style={styles.timerNote}>Max 3 seconds</Text>
+          <Text style={styles.timerNote}>Release to submit</Text>
         </View>
       </View>
     </SafeAreaView>
