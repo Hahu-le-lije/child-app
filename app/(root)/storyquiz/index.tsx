@@ -33,8 +33,11 @@ type StoryItem = {
   title: string;
   pagecount: number;
   thumbnaillink: string;
-  pages: StoryPage[];
-  questions: StoryQuestion[];
+  page1?: StoryPage;
+  page2?: StoryPage;
+  page3?: StoryPage;
+  page4?: StoryPage;
+  questions: Record<string, StoryQuestion>;
   keywordInfo: Record<string, StoryKeywordInfo>;
 };
 
@@ -46,7 +49,7 @@ type StoryGameContent = {
   };
 };
 
-export const STORY_GAME_CONTENT: StoryGameContent = {
+const STORY_GAME_CONTENT: StoryGameContent = {
   contents: {
     story: {
       stories: {
@@ -55,41 +58,39 @@ export const STORY_GAME_CONTENT: StoryGameContent = {
           pagecount: 3,
           thumbnaillink:
             "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=900",
-          pages: [
-            {
-              storytext:
-                "One warm afternoon, a lion was sleeping under a tree in the forest.",
-              keywords: ["lion", "forest"],
-              imagelink:
-                "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=1200",
-            },
-            {
-              storytext:
-                "A tiny mouse ran across the lion's paw and woke him up. The lion was angry, but the mouse asked for mercy.",
-              keywords: ["mouse", "mercy"],
-              imagelink:
-                "https://images.unsplash.com/photo-1598751337485-41099df6c7f6?w=1200",
-            },
-            {
-              storytext:
-                "Later, the lion was trapped in a hunter's net. The mouse chewed the ropes and saved the lion.",
-              keywords: ["hunter", "saved"],
-              imagelink:
-                "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=1200",
-            },
-          ],
-          questions: [
-            {
+          page1: {
+            storytext:
+              "One warm afternoon, a lion was sleeping under a tree in the forest.",
+            keywords: ["lion", "forest"],
+            imagelink:
+              "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=1200",
+          },
+          page2: {
+            storytext:
+              "A tiny mouse ran across the lion's paw and woke him up. The lion was angry, but the mouse asked for mercy.",
+            keywords: ["mouse", "mercy"],
+            imagelink:
+              "https://images.unsplash.com/photo-1598751337485-41099df6c7f6?w=1200",
+          },
+          page3: {
+            storytext:
+              "Later, the lion was trapped in a hunter's net. The mouse chewed the ropes and saved the lion.",
+            keywords: ["hunter", "saved"],
+            imagelink:
+              "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=1200",
+          },
+          questions: {
+            question1: {
               text: "Who helped the lion at the end?",
               choices: ["A bird", "The mouse", "A hunter", "Another lion"],
               correctanswer: "The mouse",
             },
-            {
+            question2: {
               text: "Where was the lion trapped?",
               choices: ["In a cave", "In a net", "In a river", "In a house"],
               correctanswer: "In a net",
             },
-          ],
+          },
           keywordInfo: {
             lion: {
               meaning: "A big wild cat known as the king of the jungle.",
@@ -128,36 +129,34 @@ export const STORY_GAME_CONTENT: StoryGameContent = {
           pagecount: 3,
           thumbnaillink:
             "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=900",
-          pages: [
-            {
-              storytext:
-                "A woodcutter worked by the river every day with his old axe.",
-              keywords: ["woodcutter", "axe"],
-              imagelink:
-                "https://images.unsplash.com/photo-1510798831971-661eb04b3739?w=1200",
-            },
-            {
-              storytext:
-                "One day, his axe slipped and fell into the deep river. He felt very sad.",
-              keywords: ["river", "deep"],
-              imagelink:
-                "https://images.unsplash.com/photo-1505764706515-aa95265c5abc?w=1200",
-            },
-            {
-              storytext:
-                "A spirit rewarded his honesty and returned his axe. He went home happily.",
-              keywords: ["spirit", "honesty"],
-              imagelink:
-                "https://images.unsplash.com/photo-1511497584788-876760111969?w=1200",
-            },
-          ],
-          questions: [
-            {
+          page1: {
+            storytext:
+              "A woodcutter worked by the river every day with his old axe.",
+            keywords: ["woodcutter", "axe"],
+            imagelink:
+              "https://images.unsplash.com/photo-1510798831971-661eb04b3739?w=1200",
+          },
+          page2: {
+            storytext:
+              "One day, his axe slipped and fell into the deep river. He felt very sad.",
+            keywords: ["river", "deep"],
+            imagelink:
+              "https://images.unsplash.com/photo-1505764706515-aa95265c5abc?w=1200",
+          },
+          page3: {
+            storytext:
+              "A spirit rewarded his honesty and returned his axe. He went home happily.",
+            keywords: ["spirit", "honesty"],
+            imagelink:
+              "https://images.unsplash.com/photo-1511497584788-876760111969?w=1200",
+          },
+          questions: {
+            question1: {
               text: "What did the woodcutter lose?",
               choices: ["His hat", "His axe", "His shoes", "His bag"],
               correctanswer: "His axe",
             },
-            {
+            question2: {
               text: "Why was he rewarded?",
               choices: [
                 "For running fast",
@@ -167,7 +166,7 @@ export const STORY_GAME_CONTENT: StoryGameContent = {
               ],
               correctanswer: "For honesty",
             },
-          ],
+          },
           keywordInfo: {
             woodcutter: {
               meaning: "A person who cuts wood from trees.",
@@ -206,6 +205,14 @@ export const STORY_GAME_CONTENT: StoryGameContent = {
   },
 };
 
+const getStoryQuestions = (story: StoryItem): StoryQuestion[] =>
+  Object.entries(story.questions)
+    .sort(
+      (a, b) =>
+        Number(a[0].replace(/\D/g, "")) - Number(b[0].replace(/\D/g, "")),
+    )
+    .map(([, value]) => value);
+
 type StoryCard = {
   id: string;
   title: string;
@@ -222,7 +229,7 @@ const StoryQuizIndex = () => {
         title: story.title,
         pagecount: story.pagecount,
         thumbnaillink: story.thumbnaillink,
-        questionCount: story.questions.length,
+        questionCount: getStoryQuestions(story).length,
       }),
     );
   }, []);

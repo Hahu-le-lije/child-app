@@ -6,15 +6,12 @@ import {
   TouchableOpacity, 
   Image, 
   ScrollView, 
-  Dimensions,
   Switch
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/authStore';
-
-const { width } = Dimensions.get('window');
 
 const AVATARS = [
   "https://cdn-icons-png.flaticon.com/512/3022/3022221.png", // Blue Monster

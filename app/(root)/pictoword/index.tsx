@@ -44,7 +44,7 @@ type LevelCard = {
   difficulty: "easy" | "medium" | "hard";
 };
 
-const PICTURE_TO_WORD_CONTENT: PictureToWordJson = {
+export const PICTURE_TO_WORD_CONTENT: PictureToWordJson = {
   contents: {
     "picture to word": {
       levels: {

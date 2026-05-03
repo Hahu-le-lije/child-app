@@ -248,7 +248,6 @@ const SentenceFunLevel = () => {
     const idx = picked.findIndex((p) => p.key === token.key);
     if (idx < 0) return;
 
-    const nextPicked = picked.filter((p) => p.key !== token.key);
     const before = picked.slice(0, idx).filter((p) => p.key !== token.key);
     const after = picked.slice(idx + 1);
     const rebuiltPool = shuffle([...pool, token, ...after]);

@@ -19,8 +19,8 @@ type VoiceChoice = {
 };
 
 type VoiceRound = {
-  voiceofwordlink: string;
-  wordchoices: VoiceChoice[];
+  "voiceof the word link": string;
+  "word choices": VoiceChoice[];
   correctwordid: string;
 };
 
@@ -40,9 +40,9 @@ export const VOICE_TO_WORD_CONTENT: VoiceContent = {
       levels: {
         level_1: {
           question1: {
-            voiceofwordlink:
+            "voiceof the word link":
               "https://cdn.pixabay.com/download/audio/2022/03/15/audio_3901f0f6f7.mp3?filename=kids-cheerful-piano-112194.mp3",
-            wordchoices: [
+            "word choices": [
               {
                 wordid: "dog",
                 wordtext: "Dog",
@@ -71,9 +71,9 @@ export const VOICE_TO_WORD_CONTENT: VoiceContent = {
             correctwordid: "dog",
           },
           question2: {
-            voiceofwordlink:
+            "voiceof the word link":
               "https://cdn.pixabay.com/download/audio/2023/03/27/audio_0e8e11a177.mp3?filename=light-tune-144935.mp3",
-            wordchoices: [
+            "word choices": [
               {
                 wordid: "book",
                 wordtext: "Book",
@@ -104,9 +104,9 @@ export const VOICE_TO_WORD_CONTENT: VoiceContent = {
         },
         level_2: {
           question1: {
-            voiceofwordlink:
+            "voiceof the word link":
               "https://cdn.pixabay.com/download/audio/2022/08/04/audio_6f9f8f5f7a.mp3?filename=happy-kids-112698.mp3",
-            wordchoices: [
+            "word choices": [
               {
                 wordid: "apple",
                 wordtext: "Apple",
@@ -156,7 +156,7 @@ const VoiceMatchIndex = () => {
       return {
         id,
         rounds,
-        image: first?.wordchoices?.[0]?.imagelink || "",
+        image: first?.["word choices"]?.[0]?.imagelink || "",
       };
     });
   }, []);

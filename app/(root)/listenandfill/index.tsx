@@ -12,9 +12,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameLayout from "@/components/GameLayout";
 
 type FillBlankLevel = {
-  fullParagraph: string;
-  blankParagraph: string;
-  voiceReadingLink: string;
+  "full paragraph": string;
+  "blank space paragraph": string;
+  "voice reading the full paragraph link": string;
   choices: string[];
 };
 
@@ -31,20 +31,20 @@ export const FILL_IN_THE_BLANK_CONTENT: FillBlankContent = {
     "fill in the blank": {
       levels: {
         level_1: {
-          fullParagraph:
+          "full paragraph":
             "The little cat sat on the warm mat while the sun was shining brightly.",
-          blankParagraph:
+          "blank space paragraph":
             "The little __1__ sat on the warm __2__ while the __3__ was shining __4__.",
-          voiceReadingLink:
+          "voice reading the full paragraph link":
             "https://cdn.pixabay.com/download/audio/2022/08/04/audio_6f9f8f5f7a.mp3?filename=happy-kids-112698.mp3",
           choices: ["cat", "mat", "sun", "brightly"],
         },
         level_2: {
-          fullParagraph:
+          "full paragraph":
             "We planted seeds in the school garden and watered them every morning.",
-          blankParagraph:
+          "blank space paragraph":
             "We planted __1__ in the school __2__ and watered them every __3__.",
-          voiceReadingLink:
+          "voice reading the full paragraph link":
             "https://cdn.pixabay.com/download/audio/2023/03/27/audio_0e8e11a177.mp3?filename=light-tune-144935.mp3",
           choices: ["seeds", "garden", "morning"],
         },
@@ -67,7 +67,7 @@ const ListenAndFillIndex = () => {
       FILL_IN_THE_BLANK_CONTENT.contents["fill in the blank"].levels,
     ).map(([id, item]) => ({
       id,
-      blankCount: extractBlanks(item.blankParagraph).length,
+      blankCount: extractBlanks(item["blank space paragraph"]).length,
       choiceCount: item.choices.length,
     }));
   }, []);
@@ -82,6 +82,19 @@ const ListenAndFillIndex = () => {
             blank.
           </Text>
         </LinearGradient>
+
+        <View style={styles.instructionsCard}>
+          <Text style={styles.instructionsTitle}>How to Play</Text>
+          <Text style={styles.instructionsText}>
+            1) Listen to the full paragraph.
+          </Text>
+          <Text style={styles.instructionsText}>
+            2) Drag each word into the blank slots.
+          </Text>
+          <Text style={styles.instructionsText}>
+            3) Submit when all blanks are filled.
+          </Text>
+        </View>
 
         <FlatList
           data={levels}
@@ -182,5 +195,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
     fontFamily: "Poppins-Medium",
+  },
+  instructionsCard: {
+    backgroundColor: "#262B52",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  instructionsTitle: {
+    color: "#fff",
+    fontFamily: "Poppins-SemiBold",
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  instructionsText: {
+    color: "#D5DBF8",
+    fontFamily: "Poppins-Regular",
+    fontSize: 12,
+    marginBottom: 2,
   },
 });

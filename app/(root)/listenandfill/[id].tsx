@@ -1,22 +1,24 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Animated,
+  PanResponder,
+  LayoutRectangle,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameLayout from "@/components/GameLayout";
 import AudioButton from "@/components/AudioButton";
 import { FILL_IN_THE_BLANK_CONTENT } from "./index";
 
 type FillBlankLevel = {
-  fullParagraph: string;
-  blankParagraph: string;
-  voiceReadingLink: string;
+  "full paragraph": string;
+  "blank space paragraph": string;
+  "voice reading the full paragraph link": string;
   choices: string[];
 };
 
@@ -25,6 +27,57 @@ const tokenizeParagraph = (text: string) =>
 const blankKeys = (text: string) => text.match(/__\d+__/g) ?? [];
 const normalize = (text: string) =>
   text.replace(/\s+/g, " ").trim().toLowerCase();
+
+const DraggableWord = ({
+  word,
+  onDrop,
+  disabled,
+}: {
+  word: string;
+  onDrop: (word: string, x: number, y: number) => void;
+  disabled?: boolean;
+}) => {
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          !disabled && (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4),
+        onPanResponderGrant: () => {
+          pan.extractOffset();
+        },
+        onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+          useNativeDriver: false,
+        }),
+        onPanResponderRelease: (_, gesture) => {
+          pan.flattenOffset();
+          onDrop(word, gesture.moveX, gesture.moveY);
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          pan.flattenOffset();
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        },
+      }),
+    [disabled, onDrop, pan, word],
+  );
+
+  return (
+    <Animated.View
+      {...responder.panHandlers}
+      style={[styles.wordChip, { transform: pan.getTranslateTransform() }]}
+    >
+      <Text style={styles.wordText}>{word}</Text>
+    </Animated.View>
+  );
+};
 
 const FillInBlankLevel = () => {
   const { id } = useLocalSearchParams();
@@ -37,10 +90,11 @@ const FillInBlankLevel = () => {
     );
   }, [levelId]);
 
-  const [pickedWord, setPickedWord] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+
+  const blankRects = useRef<Record<string, LayoutRectangle>>({});
 
   if (!level) {
     return (
@@ -58,11 +112,10 @@ const FillInBlankLevel = () => {
     );
   }
 
-  const blanks = blankKeys(level.blankParagraph);
-  const tokens = tokenizeParagraph(level.blankParagraph);
+  const blanks = blankKeys(level["blank space paragraph"]);
+  const tokens = tokenizeParagraph(level["blank space paragraph"]);
   const usedWords = new Set(Object.values(answers));
   const availableWords = level.choices.filter((word) => !usedWords.has(word));
-
   const canSubmit = blanks.every((b) => Boolean(answers[b]));
 
   const assembled = tokens
@@ -72,27 +125,41 @@ const FillInBlankLevel = () => {
     })
     .join("");
 
-  const handleDropToBlank = (blank: string) => {
-    if (!pickedWord || submitted) return;
+  const setBlankRef = (key: string) => (node: View | null) => {
+    if (!node) return;
+    requestAnimationFrame(() => {
+      node.measureInWindow((x, y, width, height) => {
+        blankRects.current[key] = { x, y, width, height };
+      });
+    });
+  };
 
-    const previous = answers[blank];
+  const handleDrop = (word: string, x: number, y: number) => {
+    if (submitted) return;
+
+    const matchedBlank = Object.entries(blankRects.current).find(([, rect]) => {
+      const withinX = x >= rect.x && x <= rect.x + rect.width;
+      const withinY = y >= rect.y && y <= rect.y + rect.height;
+      return withinX && withinY;
+    });
+
+    if (!matchedBlank) return;
+
+    const [blankKey] = matchedBlank;
     setAnswers((prev) => ({
       ...prev,
-      [blank]: pickedWord,
+      [blankKey]: word,
     }));
-
-    setPickedWord(previous ?? null);
   };
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const ok = normalize(assembled) === normalize(level.fullParagraph);
+    const ok = normalize(assembled) === normalize(level["full paragraph"]);
     setIsCorrect(ok);
     setSubmitted(true);
   };
 
   const reset = () => {
-    setPickedWord(null);
     setAnswers({});
     setSubmitted(false);
     setIsCorrect(false);
@@ -100,31 +167,23 @@ const FillInBlankLevel = () => {
 
   return (
     <GameLayout title={`Fill in Blank ${levelId.toUpperCase()}`}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
         <LinearGradient colors={["#2E3760", "#222B4D"]} style={styles.topCard}>
           <Text style={styles.topTitle}>Listen First</Text>
           <Text style={styles.topSub}>
-            Play the paragraph audio, then place words into blanks.
+            Play the paragraph audio, then drag each word into the blank slots.
           </Text>
           <AudioButton
-            uri={level.voiceReadingLink}
+            uri={level["voice reading the full paragraph link"]}
             label="Play Paragraph"
             style={styles.audioBtn}
           />
         </LinearGradient>
 
-        <View style={styles.instructionsCard}>
-          <Text style={styles.instructionsTitle}>Drag and Drop Mode</Text>
-          <Text style={styles.instructionsText}>
-            1) Tap a word to pick it up.
-          </Text>
-          <Text style={styles.instructionsText}>
-            2) Tap a blank slot to drop it.
-          </Text>
-          <Text style={styles.instructionsText}>
-            3) Tap filled slot to replace words.
-          </Text>
-        </View>
+        {/* Instructions moved to level selection screen */}
 
         <View style={styles.paragraphCard}>
           <Text style={styles.paragraphLabel}>Blank Paragraph</Text>
@@ -141,14 +200,14 @@ const FillInBlankLevel = () => {
 
               const filled = answers[token];
               return (
-                <TouchableOpacity
+                <View
                   key={token}
+                  ref={setBlankRef(token)}
+                  collapsable={false}
                   style={[styles.blankChip, filled && styles.blankFilled]}
-                  onPress={() => handleDropToBlank(token)}
-                  disabled={submitted}
                 >
                   <Text style={styles.blankText}>{filled || "_____"}</Text>
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -157,27 +216,13 @@ const FillInBlankLevel = () => {
         <View style={styles.wordBankCard}>
           <Text style={styles.wordBankTitle}>Word Choices</Text>
           <View style={styles.wordRow}>
-            {pickedWord && (
-              <TouchableOpacity
-                style={styles.pickedWordChip}
-                onPress={() => setPickedWord(null)}
-              >
-                <Text style={styles.pickedWordText}>Holding: {pickedWord}</Text>
-              </TouchableOpacity>
-            )}
-
             {availableWords.map((word) => (
-              <TouchableOpacity
+              <DraggableWord
                 key={word}
-                style={[
-                  styles.wordChip,
-                  pickedWord === word && styles.wordChipActive,
-                ]}
-                onPress={() => setPickedWord(word)}
+                word={word}
+                onDrop={handleDrop}
                 disabled={submitted}
-              >
-                <Text style={styles.wordText}>{word}</Text>
-              </TouchableOpacity>
+              />
             ))}
           </View>
         </View>
@@ -204,7 +249,7 @@ const FillInBlankLevel = () => {
             </Text>
             {!isCorrect && (
               <Text style={styles.feedbackLine}>
-                Correct paragraph: {level.fullParagraph}
+                Correct paragraph: {level["full paragraph"]}
               </Text>
             )}
             <TouchableOpacity style={styles.secondaryButton} onPress={reset}>
@@ -294,11 +339,14 @@ const styles = StyleSheet.create({
   blankChip: {
     minWidth: 72,
     borderRadius: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
     paddingHorizontal: 8,
     backgroundColor: "#1E2443",
     borderWidth: 1,
     borderColor: "#6A74B6",
+    minHeight: 34,
+    alignItems: "center",
+    justifyContent: "center",
   },
   blankFilled: {
     backgroundColor: "#364088",
@@ -329,19 +377,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  wordChipActive: { backgroundColor: "#5A67D8" },
   wordText: { color: "#fff", fontFamily: "Poppins-SemiBold", fontSize: 13 },
-  pickedWordChip: {
-    backgroundColor: "#4F6BFF",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  pickedWordText: {
-    color: "#fff",
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 13,
-  },
   primaryButton: {
     backgroundColor: "#4F6BFF",
     borderRadius: 12,
