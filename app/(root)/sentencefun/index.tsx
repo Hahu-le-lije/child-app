@@ -3,11 +3,11 @@ import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type SentenceLevel = {

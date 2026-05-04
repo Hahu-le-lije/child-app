@@ -3,11 +3,11 @@ import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const SpeakUP = () => {
@@ -23,8 +23,9 @@ const SpeakUP = () => {
   return (
     <GameLayout title="SpeakUP">
       <View style={styles.container}>
-        <TouchableOpacity style={styles.card}
-        onPress={()=>router.push(`/(root)/speakup/${2}`)}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => router.push(`/(root)/speakup/${2}`)}
         >
           <Text style={styles.title}>test button</Text>
         </TouchableOpacity>
