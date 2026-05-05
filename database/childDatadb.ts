@@ -22,4 +22,22 @@ export const initChildDataDB = () => {
       value TEXT
     );
   `);
+
+  // Lightweight migration for older installs that already had game_sessions
+  // but were missing newer columns.
+  const columns = db.getAllSync(`PRAGMA table_info(game_sessions)`) as Array<{ name: string }>;
+  const names = new Set(columns.map((c) => String(c.name)));
+
+  if (!names.has("time_spent")) {
+    db.execSync(`ALTER TABLE game_sessions ADD COLUMN time_spent INTEGER DEFAULT 0;`);
+  }
+  if (!names.has("metrics")) {
+    db.execSync(`ALTER TABLE game_sessions ADD COLUMN metrics TEXT;`);
+  }
+  if (!names.has("synced")) {
+    db.execSync(`ALTER TABLE game_sessions ADD COLUMN synced INTEGER DEFAULT 0;`);
+  }
+  if (!names.has("updated_at")) {
+    db.execSync(`ALTER TABLE game_sessions ADD COLUMN updated_at TEXT;`);
+  }
 };

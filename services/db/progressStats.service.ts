@@ -23,6 +23,11 @@ export type ProfileStats = {
   badges: number;
 };
 
+type SessionColumns = {
+  hasTimeSpent: boolean;
+  hasUpdatedAt: boolean;
+};
+
 function childScope(childId?: string | number | null) {
   const id = childId != null ? String(childId) : null;
   return {
@@ -63,11 +68,27 @@ function calculateStreak(dateRows: Array<{ day: string }>): number {
   return streak;
 }
 
+function getSessionColumns(): SessionColumns {
+  try {
+    const rows = db.getAllSync(`PRAGMA table_info(game_sessions)`) as Array<{ name: string }>;
+    const names = new Set(rows.map((r) => String(r.name)));
+    return {
+      hasTimeSpent: names.has("time_spent"),
+      hasUpdatedAt: names.has("updated_at"),
+    };
+  } catch {
+    return { hasTimeSpent: false, hasUpdatedAt: false };
+  }
+}
+
 export function getProgressStats(childId?: string | number | null): {
   summary: SummaryStats;
   gameStats: GameProgress[];
 } {
   const { whereClause, params } = childScope(childId);
+  const columns = getSessionColumns();
+  const timeExpr = columns.hasTimeSpent ? "time_spent" : "0";
+  const updatedExpr = columns.hasUpdatedAt ? "updated_at" : "created_at";
 
   const totals = db.getFirstSync(
     `
@@ -75,7 +96,7 @@ export function getProgressStats(childId?: string | number | null): {
         COUNT(*) as totalSessions,
         COALESCE(AVG(score), 0) as avgScore,
         COALESCE(MAX(score), 0) as bestScore,
-        COALESCE(SUM(time_spent), 0) as totalTime,
+        COALESCE(SUM(${timeExpr}), 0) as totalTime,
         COUNT(DISTINCT game_type) as uniqueGames
       FROM game_sessions
       ${whereClause}
@@ -90,8 +111,8 @@ export function getProgressStats(childId?: string | number | null): {
         COUNT(*) as sessionCount,
         COALESCE(AVG(score), 0) as avgScore,
         COALESCE(MAX(score), 0) as bestScore,
-        COALESCE(SUM(time_spent), 0) as totalTime,
-        MAX(updated_at) as lastPlayed
+        COALESCE(SUM(${timeExpr}), 0) as totalTime,
+        MAX(${updatedExpr}) as lastPlayed
       FROM game_sessions
       ${whereClause}
       GROUP BY game_type
@@ -121,6 +142,8 @@ export function getProgressStats(childId?: string | number | null): {
 
 export function getProfileStats(childId?: string | number | null): ProfileStats {
   const { whereClause, params } = childScope(childId);
+  const columns = getSessionColumns();
+  const updatedExpr = columns.hasUpdatedAt ? "updated_at" : "created_at";
 
   const totals = db.getFirstSync(
     `
@@ -137,7 +160,7 @@ export function getProfileStats(childId?: string | number | null): ProfileStats 
 
   const dayRows = db.getAllSync(
     `
-      SELECT DISTINCT DATE(updated_at) AS day
+      SELECT DISTINCT DATE(${updatedExpr}) AS day
       FROM game_sessions
       ${whereClause}
       ORDER BY day DESC
