@@ -1,12 +1,19 @@
 import { COLORS, FONTS, RADIUS, SPACING } from "@/const";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { TouchableOpacity, StyleSheet,View, Text } from "react-native";
+import { useClickSound } from "@/hooks/useSound";
 
 const SidebarItem = ({ icon, label, onPress, variant = 'primary' }: any) => {
   const isSecondary = variant === 'secondary';
+  const playClickSound = useClickSound();
+
+  const handlePress = async () => {
+    await playClickSound();
+    onPress?.();
+  };
 
   return (
-    <TouchableOpacity style={styles.item} onPress={onPress}>
+    <TouchableOpacity style={styles.item} onPress={handlePress}>
       <View
         style={[
           styles.iconBg,

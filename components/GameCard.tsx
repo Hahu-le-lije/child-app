@@ -9,11 +9,13 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useClickSound } from "@/hooks/useSound";
 
 const { width } = Dimensions.get("window");
 
 const GameCard = ({ title, desc, image, onPress }: any) => {
   const scale = useRef(new Animated.Value(1)).current;
+  const playClickSound = useClickSound();
 
   const pressIn = () => {
     Animated.spring(scale, {
@@ -29,12 +31,17 @@ const GameCard = ({ title, desc, image, onPress }: any) => {
     }).start();
   };
 
+  const handlePress = async () => {
+    await playClickSound();
+    onPress?.();
+  };
+
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
         style={styles.container}
         activeOpacity={0.9}
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={pressIn}
         onPressOut={pressOut}
       >

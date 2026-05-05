@@ -1,5 +1,6 @@
 import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
 import React from 'react';
+import { useClickSound } from '@/hooks/useSound';
 
 const COLORS = {
   primary: "#007bff",
@@ -21,9 +22,16 @@ const CustomButton = ({
   style,
   ...props
 }) => {
+  const playClickSound = useClickSound();
+
+  const handlePress = async () => {
+    await playClickSound();
+    onPress?.();
+  };
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       style={[styles.button, { backgroundColor: COLORS[bgVariant] }, style]}
       {...props}
     >

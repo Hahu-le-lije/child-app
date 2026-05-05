@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -13,23 +13,50 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/const';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
+import { useSoundStore } from '@/store/soundStore';
+import { useClickSound } from '@/hooks/useSound';
+import { ProfileStats, getProfileStats } from '@/services/db/progressStats.service';
 
 const Profile = () => {
   const user = useAuthStore((state) => state.user);
+  const { soundEnabled, setSoundEnabled } = useSoundStore();
   const logout = useAuthStore((state) => state.logout);
   const router = useRouter();
 
-  const [isSoundOn, setIsSoundOn] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [stats, setStats] = useState<ProfileStats>({
+    points: 0,
+    dayStreak: 0,
+    badges: 0,
+  });
 
   const navigation = useNavigation();
+  const playClickSound = useClickSound();
 
-  const openDrawer = () => {
+  const openDrawer = async () => {
+    await playClickSound();
     navigation.dispatch(DrawerActions.openDrawer());
   };
+
+  const handleSignOut = async () => {
+    await playClickSound();
+    logout();
+    router.replace('/(auth)/log-in');
+  };
+
+  const loadStats = useCallback(() => {
+    setStats(getProfileStats(user?.id));
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
 
   return (
     <SafeAreaComponent style={styles.container}>
@@ -68,7 +95,7 @@ const Profile = () => {
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="star" size={24} color="#FFD700" />
-            <Text style={styles.statValue}>1,240</Text>
+            <Text style={styles.statValue}>{stats.points}</Text>
             <Text style={styles.statLabel}>Points</Text>
           </View>
 
@@ -76,7 +103,7 @@ const Profile = () => {
 
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="fire" size={24} color="#FF4D4D" />
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{stats.dayStreak}</Text>
             <Text style={styles.statLabel}>Day Streak</Text>
           </View>
 
@@ -84,7 +111,7 @@ const Profile = () => {
 
           <View style={styles.statBox}>
             <MaterialCommunityIcons name="trophy" size={24} color="#FFD93D" />
-            <Text style={styles.statValue}>8</Text>
+            <Text style={styles.statValue}>{stats.badges}</Text>
             <Text style={styles.statLabel}>Badges</Text>
           </View>
         </View>
@@ -102,8 +129,8 @@ const Profile = () => {
             </View>
 
             <Switch 
-              value={isSoundOn} 
-              onValueChange={setIsSoundOn}
+              value={soundEnabled}
+              onValueChange={setSoundEnabled}
               trackColor={{ false: COLORS.border, true: '#20BF6B' }}
               thumbColor="#FFF"
             />
@@ -113,10 +140,7 @@ const Profile = () => {
       
         <TouchableOpacity
           style={styles.logoutBtn}
-          onPress={() => {
-            logout();
-            router.replace('/(auth)/log-in');
-          }}
+          onPress={handleSignOut}
         >
           <MaterialCommunityIcons name="logout" size={20} color={COLORS.danger} />
           <Text style={styles.logoutText}>Sign Out</Text>
