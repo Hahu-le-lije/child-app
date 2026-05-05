@@ -117,7 +117,7 @@ const TrophyAlbum = () => {
 export default TrophyAlbum;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1F1F39' },
+  container: { flex: 1, backgroundColor: "transparent" },
   header: { paddingHorizontal: 30, marginTop: 20 },
   headerTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   menuButton: { marginRight: 12, padding: 4 },

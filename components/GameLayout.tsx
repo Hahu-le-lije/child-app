@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
@@ -52,7 +52,7 @@ export default GameLayout;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1F1F39",
+    backgroundColor: "transparent",
   },
   backButton: {
     width: 45,

@@ -8,7 +8,6 @@ import {
   ScrollView, 
   Switch
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/authStore';
@@ -16,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/const';
+import SafeAreaComponent from '@/components/SafeAreaComponent';
 
 const Profile = () => {
   const user = useAuthStore((state) => state.user);
@@ -32,7 +32,7 @@ const Profile = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaComponent style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
       
@@ -128,7 +128,7 @@ const Profile = () => {
         </Text>
 
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaComponent>
   );
 };
 
@@ -137,7 +137,7 @@ export default Profile;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: "transparent",
   },
 
   scrollContent: {

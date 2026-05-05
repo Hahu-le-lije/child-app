@@ -1,6 +1,6 @@
 import { db } from "@/database/db";
 
-/** Namespace pack-owned rows to avoid collisions and support re-download. */
+
 export function packScopedId(packSlug: string, rawId: string): string {
   const s = packSlug.trim();
   const r = String(rawId).trim();

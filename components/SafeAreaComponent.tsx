@@ -1,6 +1,7 @@
-import { View,  ViewProps, StyleProp, ViewStyle,StyleSheet} from 'react-native'
-import React from 'react'
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, ViewProps, StyleProp, ViewStyle, StyleSheet } from "react-native";
+import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import FunBackground from "@/components/FunBackground";
 
 type SafeProps = {
   style?: StyleProp<ViewStyle>;
@@ -23,15 +24,17 @@ const SafeAreaComponent: React.FC<SafeProps> = ({style,...props}) => {
         ]
     }
     {...props}
-    />
+    >
+      <FunBackground />
+      {props.children}
+    </View>
   )
 }
 
 export default SafeAreaComponent
 const styles = StyleSheet.create({
     container:{
-        backgroundColor:"#1F1F39",
-        height:"100%",
-        width:"100%",
+        flex: 1,
+        backgroundColor:"transparent",
     }
 })

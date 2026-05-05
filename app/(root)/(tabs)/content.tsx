@@ -261,7 +261,7 @@ export default Content;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1F1F39",
+    backgroundColor: "transparent",
   },
   header: {
     padding: 20,

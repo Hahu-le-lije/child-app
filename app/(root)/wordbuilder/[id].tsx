@@ -239,7 +239,13 @@ const WordBuilder = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 40, backgroundColor: '#1F1F39' },
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 40,
+    backgroundColor: "transparent",
+  },
 
   topBar: { width: '90%', flexDirection: 'row', justifyContent: 'space-between' },
   scoreText: { color: 'white', fontSize: 18 },

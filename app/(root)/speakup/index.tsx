@@ -1,14 +1,12 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  FlatList,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from "react-native";
+import LevelMap, { LevelMapItem } from "../listenandfill/LevelMap";
 
 const SpeakUP = () => {
   const [levels, setLevels] = useState<any[]>([]);
@@ -20,32 +18,25 @@ const SpeakUP = () => {
     })();
   }, []);
 
+  const levelNodes = useMemo<LevelMapItem[]>(
+    () =>
+      (levels ?? []).map((item: any, index: number) => ({
+        id: String(item.id),
+        levelNumber: Number(item.level_number) || index + 1,
+      })),
+    [levels],
+  );
+
   return (
-    <GameLayout title="SpeakUP">
+    <GameLayout title="SpeakUP" fullScreen>
       <View style={styles.container}>
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => router.push(`/(root)/speakup/${2}`)}
-        >
-          <Text style={styles.title}>test button</Text>
-        </TouchableOpacity>
-        <FlatList
-          data={levels}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push(`/(root)/speakup/${item.id}`)}
-            >
-              <Text style={styles.title}>
-                {item.title || `Level ${item.level_number}`}
-              </Text>
-              <Text style={styles.subtitle}>
-                {item.description || "Practice pronunciation"}
-              </Text>
-            </TouchableOpacity>
-          )}
+        <LevelMap
+          gameTitle="SpeakUP"
+          guideTitle="How to Play"
+          guideText="Pick a level, listen to the word, then tap the mic and say it clearly."
+          levels={levelNodes}
+          onPressLevel={(item) => router.push(`/(root)/speakup/${item.id}`)}
+          emptyMessage="No pronunciation levels available right now."
         />
       </View>
     </GameLayout>
@@ -56,13 +47,4 @@ export default SpeakUP;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { padding: 16 },
-  card: {
-    backgroundColor: "#2F2F42",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-  },
-  title: { color: "#fff", fontSize: 16, fontFamily: "Poppins-Bold" },
-  subtitle: { color: "#aaa", marginTop: 4, fontSize: 12 },
 });
