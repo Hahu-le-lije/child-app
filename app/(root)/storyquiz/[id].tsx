@@ -1,6 +1,9 @@
 import GameLayout from "@/components/GameLayout";
 import WordDetailSheet from "@/components/WordDetailSheet";
 import { getGameContent } from "@/services/cms/gameContentService";
+import { getUser } from "@/services/db/authStorage";
+import { upsertGameSession } from "@/services/db/gameSession.service";
+import { scoreStorySession } from "@/services/gaming/scoring.service";
 import { useWordDetails } from "@/services/gaming/useWordDetails";
 import { useLanguageStore } from "@/store/languageStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -128,6 +131,10 @@ const StoryQuizLevel = () => {
   });
   const [completed, setCompleted] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [keywordsClicked, setKeywordsClicked] = useState(0);
+  const [uniqueKeywordsClicked, setUniqueKeywordsClicked] = useState<string[]>([]);
+  const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
+  const [questionResults, setQuestionResults] = useState<Record<string, boolean>>({});
   const [stats, setStats] = useState<SessionStats>({
     total: 0,
     correct: 0,
@@ -136,6 +143,8 @@ const StoryQuizLevel = () => {
   });
 
   const startRef = useRef(Date.now());
+  const sessionStartRef = useRef(Date.now());
+  const savedRef = useRef(false);
   const { fetchExplanation, explanation, loading: detailsLoading, error: detailsError, clearExplanation } = useWordDetails();
   const language = useLanguageStore((state) => state.language);
 
@@ -155,6 +164,12 @@ const StoryQuizLevel = () => {
       setFeedback({ show: false, correct: false, message: "" });
       setCompleted(false);
       setStats({ total: items.length, correct: 0, wrong: 0, times: [] });
+      setKeywordsClicked(0);
+      setUniqueKeywordsClicked([]);
+      setQuestionAttempts({});
+      setQuestionResults({});
+      sessionStartRef.current = Date.now();
+      savedRef.current = false;
       startRef.current = Date.now();
       setLoading(false);
     };
@@ -180,6 +195,10 @@ const StoryQuizLevel = () => {
 
   const handleWordPress = async (word: string) => {
     setSelectedWord(word);
+    setKeywordsClicked((prev) => prev + 1);
+    setUniqueKeywordsClicked((prev) =>
+      prev.includes(word) ? prev : [...prev, word]
+    );
     await fetchExplanation(word, language);
   };
 
@@ -217,8 +236,13 @@ const StoryQuizLevel = () => {
       currentQuestion.correctAnswer.trim().toLowerCase();
 
     setSelectedOption(option);
+    setQuestionAttempts((prev) => ({
+      ...prev,
+      [currentQuestion.id]: (prev[currentQuestion.id] ?? 0) + 1,
+    }));
 
     if (isCorrect) {
+      setQuestionResults((prev) => ({ ...prev, [currentQuestion.id]: true }));
       setStats((prev) => ({
         ...prev,
         correct: prev.correct + 1,
@@ -246,6 +270,7 @@ const StoryQuizLevel = () => {
       return;
     }
 
+    setQuestionResults((prev) => ({ ...prev, [currentQuestion.id]: false }));
     setStats((prev) => ({ ...prev, wrong: prev.wrong + 1 }));
     setFeedback({
       show: true,
@@ -258,6 +283,74 @@ const StoryQuizLevel = () => {
       setFeedback({ show: false, correct: false, message: "" });
     }, 800);
   };
+
+  useEffect(() => {
+    if (!completed || savedRef.current) return;
+    savedRef.current = true;
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+      const pagesRead = quiz.length > 0 ? currentIndex + 1 : 0;
+      const totalKeywords = Math.max(
+        1,
+        quiz.reduce((sum, q) => {
+          const words = q.storyContent
+            .replace(/[.,!?;:()[\]{}"']/g, " ")
+            .split(/\s+/)
+            .map((w) => w.trim())
+            .filter((w) => w.length > 1);
+          return sum + new Set(words).size;
+        }, 0)
+      );
+      const storyScore = scoreStorySession({
+        pagesRead,
+        totalPages: quiz.length,
+        keywordsClicked,
+        totalKeywords,
+        correctAnswers: stats.correct,
+        totalQuestions: stats.total,
+      });
+      const now = new Date().toISOString();
+      const sessionId = `story_${user.id}_${Date.now()}`;
+      upsertGameSession({
+        id: sessionId,
+        child_id: String(user.id),
+        game_type: "story",
+        content_id: levelId,
+        score: storyScore.finalScore,
+        time_spent: Math.round((Date.now() - sessionStartRef.current) / 1000),
+        metrics: {
+          story_id: levelId,
+          pages_read: pagesRead,
+          total_pages: quiz.length,
+          keywords_clicked: keywordsClicked,
+          unique_keywords_clicked: uniqueKeywordsClicked,
+          questions: quiz.map((q) => ({
+            question_id: q.id,
+            is_correct: Boolean(questionResults[q.id]),
+            attempts: questionAttempts[q.id] ?? 0,
+          })),
+          skills: storyScore.skills,
+          ui_score: Math.round(finalScore),
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
+  }, [
+    completed,
+    currentIndex,
+    finalScore,
+    keywordsClicked,
+    levelId,
+    questionAttempts,
+    questionResults,
+    quiz,
+    stats.correct,
+    stats.total,
+    uniqueKeywordsClicked,
+  ]);
 
   if (loading) {
     return (

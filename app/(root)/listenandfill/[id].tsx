@@ -12,6 +12,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Progress from "react-native-progress";
 import GameLayout from "@/components/GameLayout";
 import AudioButton from "@/components/AudioButton";
+import { getUser } from "@/services/db/authStorage";
+import { upsertGameSession } from "@/services/db/gameSession.service";
+import { scoreFillBlank } from "@/services/gaming/scoring.service";
 import { LISTEN_AND_FILL_CONTENT } from "./index";
 
 type ListenQuestion = {
@@ -71,6 +74,8 @@ const ListenAndFillGame = () => {
     message: string;
   }>({ show: false, correct: false, message: "" });
   const [completed, setCompleted] = useState(false);
+  const [dragAttempts, setDragAttempts] = useState(0);
+  const [replayCount, setReplayCount] = useState(0);
 
   const [stats, setStats] = useState<SessionStats>({
     total: level.questions.length,
@@ -80,6 +85,8 @@ const ListenAndFillGame = () => {
   });
 
   const startRef = useRef(Date.now());
+  const sessionStartRef = useRef(Date.now());
+  const savedRef = useRef(false);
   const currentQuestion = level.questions[currentIndex];
 
   const accuracy = stats.total === 0 ? 0 : stats.correct / stats.total;
@@ -102,11 +109,16 @@ const ListenAndFillGame = () => {
       times: [],
     });
     startRef.current = Date.now();
+    sessionStartRef.current = Date.now();
+    savedRef.current = false;
+    setDragAttempts(0);
+    setReplayCount(0);
   };
 
   const handleOptionPress = (word: string) => {
     if (!currentQuestion || feedback.show) return;
 
+    setDragAttempts((prev) => prev + 1);
     const elapsed = (Date.now() - startRef.current) / 1000;
     const isCorrect =
       word.toLowerCase() === currentQuestion.answer.toLowerCase();
@@ -151,6 +163,44 @@ const ListenAndFillGame = () => {
       setFeedback({ show: false, correct: false, message: "" });
     }, 700);
   };
+
+  React.useEffect(() => {
+    if (!completed || savedRef.current) return;
+    savedRef.current = true;
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+      const totalTime = Math.round((Date.now() - sessionStartRef.current) / 1000);
+      const scored = scoreFillBlank({
+        blanksTotal: stats.total,
+        correctFills: stats.correct,
+        wrongAttempts: stats.wrong,
+        dragAttempts,
+        timeTakenSeconds: totalTime,
+      });
+      const now = new Date().toISOString();
+      upsertGameSession({
+        id: `fill_${user.id}_${Date.now()}`,
+        child_id: String(user.id),
+        game_type: "fill_blank",
+        content_id: levelId,
+        score: scored.finalScore,
+        time_spent: totalTime,
+        metrics: {
+          blanks_total: stats.total,
+          correct_fills: stats.correct,
+          wrong_attempts: stats.wrong,
+          drag_attempts: dragAttempts,
+          replay_count: replayCount,
+          time_taken: totalTime,
+          skills: scored.skills,
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
+  }, [completed, dragAttempts, levelId, replayCount, stats.correct, stats.total, stats.wrong]);
 
   if (!currentQuestion && !completed) {
     return (
@@ -274,6 +324,7 @@ const ListenAndFillGame = () => {
             uri={currentQuestion.audioUrl ?? null}
             label="Play Audio"
             style={styles.audioBtn}
+            onPlay={() => setReplayCount((prev) => prev + 1)}
           />
           <Text style={styles.sentence}>{revealedSentence}</Text>
         </View>

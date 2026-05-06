@@ -12,6 +12,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Progress from "react-native-progress";
 import GameLayout from "@/components/GameLayout";
+import { getUser } from "@/services/db/authStorage";
+import { upsertGameSession } from "@/services/db/gameSession.service";
+import { scorePictureToWord } from "@/services/gaming/scoring.service";
 
 type JsonImage = { id: string; imagelink: string };
 type JsonQuestion = {
@@ -349,6 +352,8 @@ const PicToWordGame = () => {
   });
 
   const startTimeRef = useRef(Date.now());
+  const sessionStartRef = useRef(Date.now());
+  const savedRef = useRef(false);
   const currentQuestion = level.questions[currentIndex];
 
   const accuracy =
@@ -407,6 +412,8 @@ const PicToWordGame = () => {
       time_per_question: [],
     });
     startTimeRef.current = Date.now();
+    sessionStartRef.current = Date.now();
+    savedRef.current = false;
   };
 
   const handleSelect = (imageId: string) => {
@@ -459,6 +466,45 @@ const PicToWordGame = () => {
       setFeedback({ show: false, correct: false, message: "" });
     }, 700);
   };
+
+  React.useEffect(() => {
+    if (!completed || savedRef.current) return;
+    savedRef.current = true;
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+      const avgTime =
+        session.time_per_question.length > 0
+          ? session.time_per_question.reduce((sum, n) => sum + n, 0) /
+            session.time_per_question.length
+          : 0;
+      const scored = scorePictureToWord({
+        totalQuestions: session.total_questions,
+        correctAnswers: session.correct_answers,
+        avgQuestionTime: avgTime,
+      });
+      const now = new Date().toISOString();
+      upsertGameSession({
+        id: `pictoword_${user.id}_${Date.now()}`,
+        child_id: String(user.id),
+        game_type: "picture_to_word",
+        content_id: levelId,
+        score: scored.finalScore,
+        time_spent: Math.round((Date.now() - sessionStartRef.current) / 1000),
+        metrics: {
+          total_questions: session.total_questions,
+          correct_answers: session.correct_answers,
+          wrong_attempts: session.wrong_attempts,
+          time_per_question: session.time_per_question,
+          skills: scored.skills,
+          insights,
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
+  }, [completed, insights, levelId, session]);
 
   if (!currentQuestion && !completed) {
     return (

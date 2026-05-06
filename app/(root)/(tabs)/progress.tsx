@@ -16,7 +16,13 @@ import { COLORS, FONTS, GAMES, RADIUS, SPACING } from "@/const";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/store/authStore";
 import { useClickSound } from "@/hooks/useSound";
-import { GameProgress, SummaryStats, getProgressStats } from "@/services/db/progressStats.service";
+import {
+  GameProgress,
+  SummaryStats,
+  SessionInsight,
+  getProgressStats,
+  getRecentSessionInsights,
+} from "@/services/db/progressStats.service";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.75;
@@ -34,6 +40,7 @@ const TrophyAlbum = () => {
     uniqueGames: 0,
   });
   const [gameStats, setGameStats] = useState<GameProgress[]>([]);
+  const [recentSessions, setRecentSessions] = useState<SessionInsight[]>([]);
 
   const loadProgress = useCallback(() => {
     try {
@@ -41,6 +48,7 @@ const TrophyAlbum = () => {
       const result = getProgressStats(user?.id);
       setSummary(result.summary);
       setGameStats(result.gameStats);
+      setRecentSessions(getRecentSessionInsights(user?.id, 10));
     } finally {
       setLoading(false);
     }
@@ -81,6 +89,63 @@ const TrophyAlbum = () => {
       };
     });
   }, [gameStatsByType]);
+
+  const formatGameType = (gameType: string) =>
+    gameType
+      .split("_")
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(" ");
+
+  const sessionHighlights = useMemo(() => {
+    return recentSessions.map((s) => {
+      const m = s.metrics ?? {};
+      const skills = (m.skills ?? {}) as Record<string, number>;
+      const skillEntries = Object.entries(skills)
+        .slice(0, 3)
+        .map(([k, v]) => `${k.replace(/_/g, " ")} ${Math.round(Number(v) * 100)}%`);
+      const lines: string[] = [];
+
+      if (s.gameType === "story") {
+        lines.push(
+          `Read ${m.pages_read ?? 0}/${m.total_pages ?? 0} pages, clicked ${m.keywords_clicked ?? 0} keywords`
+        );
+      } else if (s.gameType === "picture_to_word") {
+        lines.push(
+          `${m.correct_answers ?? 0}/${m.total_questions ?? 0} correct, wrong attempts ${m.wrong_attempts ?? 0}`
+        );
+      } else if (s.gameType === "tracing") {
+        lines.push(
+          `Letter ${m.letter ?? "-"} • stroke ${m.stroke_accuracy ?? 0}% • eraser ${m.eraser_used_count ?? 0}`
+        );
+      } else if (s.gameType === "word_builder") {
+        lines.push(
+          `Found ${(m.words_found ?? []).length}/${m.total_possible_words ?? 0} words • hints ${m.hints_used ?? 0}`
+        );
+      } else if (s.gameType === "fill_blank") {
+        lines.push(
+          `${m.correct_fills ?? 0}/${m.blanks_total ?? 0} correct • wrong ${m.wrong_attempts ?? 0} • drags ${m.drag_attempts ?? 0}`
+        );
+      } else if (s.gameType === "pronunciation") {
+        lines.push(
+          `Word ${m.targetWord ?? "-"} • pronunciation ${m.pronunciation_score ?? 0}% • attempts ${m.attempts ?? 1}`
+        );
+      } else if (s.gameType === "voice_word_match") {
+        lines.push(
+          `${m.correct_answers ?? 0}/${m.total_questions ?? 0} correct • replays ${m.replay_count ?? 0}`
+        );
+      }
+
+      if (skillEntries.length > 0) {
+        lines.push(`Skills: ${skillEntries.join(" • ")}`);
+      }
+
+      return {
+        ...s,
+        title: formatGameType(s.gameType),
+        lines,
+      };
+    });
+  }, [recentSessions]);
 
   return (
     <SafeAreaComponent style={styles.container}>
@@ -184,6 +249,41 @@ const TrophyAlbum = () => {
           <View key={item.id} style={[styles.dot, item.played && styles.activeDot]} />
         ))}
       </View>
+
+      <View style={styles.insightSection}>
+        <Text style={styles.insightTitle}>Recent Metrics & Skills</Text>
+        <ScrollView
+          style={styles.insightList}
+          contentContainerStyle={styles.insightListContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {sessionHighlights.length === 0 ? (
+            <View style={styles.emptyInsightCard}>
+              <Text style={styles.emptyInsightText}>
+                Play a game to see metrics and skill insights here.
+              </Text>
+            </View>
+          ) : (
+            sessionHighlights.map((session) => (
+              <View key={session.id} style={styles.insightCard}>
+                <View style={styles.insightHeader}>
+                  <Text style={styles.insightGame}>{session.title}</Text>
+                  <Text style={styles.insightScore}>{session.score}%</Text>
+                </View>
+                {session.lines.map((line, idx) => (
+                  <Text key={`${session.id}-${idx}`} style={styles.insightLine}>
+                    {line}
+                  </Text>
+                ))}
+                <Text style={styles.insightMeta}>
+                  {Math.round(session.timeSpent / 60)} min •{" "}
+                  {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : "-"}
+                </Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </View>
     </SafeAreaComponent>
   );
 };
@@ -279,4 +379,60 @@ const styles = StyleSheet.create({
   indicatorContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 30 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#3E3E55", marginHorizontal: 4 },
   activeDot: { backgroundColor: "#3D5CFF", width: 20 },
+  insightSection: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  insightTitle: {
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    marginBottom: SPACING.sm,
+  },
+  insightList: { flex: 1 },
+  insightListContent: { paddingBottom: SPACING.lg, gap: SPACING.sm },
+  insightCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+  },
+  insightHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  insightGame: {
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.semi,
+    fontSize: 14,
+  },
+  insightScore: {
+    color: "#7FD1FF",
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+  },
+  insightLine: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    marginBottom: 3,
+  },
+  insightMeta: {
+    color: "#9CA3C3",
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+    marginTop: 6,
+  },
+  emptyInsightCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+  },
+  emptyInsightText: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+  },
 });

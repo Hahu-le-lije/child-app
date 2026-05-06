@@ -8,6 +8,9 @@ import WordDetailSheet from '@/components/WordDetailSheet';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWordDetails } from '@/services/gaming/useWordDetails';
 import { useLanguageStore } from '@/store/languageStore';
+import { scoreWordBuilder } from '@/services/gaming/scoring.service';
+import { getUser } from '@/services/db/authStorage';
+import { upsertGameSession } from '@/services/db/gameSession.service';
 
 const { width } = Dimensions.get('window');
 const WHEEL = width * 0.85;
@@ -28,12 +31,15 @@ const INITIAL_DATA = {
 const WordBuilder = () => {
   const { id } = useLocalSearchParams();
 
-  const [letters, setLetters] = useState(INITIAL_DATA.letters);
+  const [letters] = useState(INITIAL_DATA.letters);
   const [foundWords, setFoundWords] = useState<string[]>([]);
   const [currentPath, setCurrentPath] = useState<number[]>([]);
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [completed, setCompleted] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const { fetchExplanation, explanation, loading, error, clearExplanation } = useWordDetails();
   const language = useLanguageStore((state) => state.language);
@@ -43,6 +49,8 @@ const WordBuilder = () => {
   const [feedbackText, setFeedbackText] = useState<string | null>(null);
 
   const pathRef = useRef<number[]>([]);
+  const sessionStartRef = useRef(Date.now());
+  const savedRef = useRef(false);
 
   const handleWordPress = async (word: string) => {
     setSelectedWord(word);
@@ -124,17 +132,24 @@ const WordBuilder = () => {
             setTimeout(() => setFeedbackText(null), 1000);
 
             setHint(null);
+            if (foundWords.length + 1 >= INITIAL_DATA.correctWords.length) {
+              setCompleted(true);
+            }
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         } else if (word.length > 0) {
           setCombo(0);
+          setWrongAttempts((prev) => prev + 1);
 
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
           const remainingWord = INITIAL_DATA.correctWords.find(w => !foundWords.includes(w.wordtext));
           const hintObj = INITIAL_DATA.hints.find(h => h.wordid === remainingWord?.wordid);
 
+          if (hintObj?.hinttext) {
+            setHintsUsed((prev) => prev + 1);
+          }
           setHint(hintObj?.hinttext || 'Try again!');
         }
 
@@ -143,6 +158,43 @@ const WordBuilder = () => {
       },
     })
   ).current;
+
+  React.useEffect(() => {
+    if (!completed || savedRef.current) return;
+    savedRef.current = true;
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+      const totalTime = Math.round((Date.now() - sessionStartRef.current) / 1000);
+      const scored = scoreWordBuilder({
+        wordsFound: foundWords.length,
+        totalPossibleWords: INITIAL_DATA.correctWords.length,
+        wrongAttempts,
+        hintsUsed,
+        timeTakenSeconds: totalTime,
+      });
+      const now = new Date().toISOString();
+      upsertGameSession({
+        id: `wordbuilder_${user.id}_${Date.now()}`,
+        child_id: String(user.id),
+        game_type: "word_builder",
+        content_id: String(id),
+        score: scored.finalScore,
+        time_spent: totalTime,
+        metrics: {
+          words_found: foundWords,
+          total_possible_words: INITIAL_DATA.correctWords.length,
+          wrong_attempts: wrongAttempts,
+          hints_used: hintsUsed,
+          time_taken: totalTime,
+          skills: scored.skills,
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
+  }, [completed, foundWords, hintsUsed, id, wrongAttempts]);
 
   return (
     <GameLayout title={`Level ${id}`}>

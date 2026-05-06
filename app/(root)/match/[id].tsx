@@ -1,6 +1,9 @@
 import AudioButton from "@/components/AudioButton";
 import GameLayout from "@/components/GameLayout";
 import { getGameContent } from "@/services/cms/gameContentService";
+import { getUser } from "@/services/db/authStorage";
+import { upsertGameSession } from "@/services/db/gameSession.service";
+import { scoreVoiceMatch } from "@/services/gaming/scoring.service";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -21,6 +24,11 @@ const MatchLevel = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [round, setRound] = useState(0);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [replayCount, setReplayCount] = useState(0);
+  const [sessionStartedAt, setSessionStartedAt] = useState(Date.now());
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +37,11 @@ const MatchLevel = () => {
       setSelected(null);
       setMessage("");
       setRound(0);
+      setCorrectAnswers(0);
+      setWrongAttempts(0);
+      setReplayCount(0);
+      setSessionStartedAt(Date.now());
+      setSaved(false);
     })();
   }, [levelId]);
 
@@ -42,6 +55,7 @@ const MatchLevel = () => {
 
   const currentPrompt = useMemo(() => {
     if (words.length === 0) return null;
+    if (round >= words.length) return null;
     return words[round % words.length];
   }, [round, words]);
 
@@ -67,12 +81,54 @@ const MatchLevel = () => {
     if (selected) return;
     setSelected(opt.key);
     setMessage(opt.correct ? "Correct!" : "Try again");
+    if (opt.correct) {
+      setCorrectAnswers((prev) => prev + 1);
+    } else {
+      setWrongAttempts((prev) => prev + 1);
+    }
     setTimeout(() => {
       setSelected(null);
       setMessage("");
-      if (opt.correct) setRound((r) => r + 1);
+      if (opt.correct) setRound((r) => Math.min(r + 1, words.length));
     }, 1200);
   };
+
+  const isCompleted = words.length > 0 && round >= words.length;
+
+  React.useEffect(() => {
+    if (!isCompleted || saved) return;
+    setSaved(true);
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+      const maxReplays = Math.max(1, words.length * 3);
+      const scored = scoreVoiceMatch({
+        totalQuestions: words.length,
+        correctAnswers,
+        replayCount,
+        maxReplays,
+      });
+      const now = new Date().toISOString();
+      upsertGameSession({
+        id: `voice_match_${user.id}_${Date.now()}`,
+        child_id: String(user.id),
+        game_type: "voice_word_match",
+        content_id: levelId,
+        score: scored.finalScore,
+        time_spent: Math.round((Date.now() - sessionStartedAt) / 1000),
+        metrics: {
+          total_questions: words.length,
+          correct_answers: correctAnswers,
+          wrong_attempts: wrongAttempts,
+          replay_count: replayCount,
+          skills: scored.skills,
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
+  }, [correctAnswers, isCompleted, levelId, replayCount, saved, sessionStartedAt, words.length, wrongAttempts]);
 
   return (
     <GameLayout title={`Match ${levelId}`}>
@@ -84,6 +140,7 @@ const MatchLevel = () => {
           uri={currentPrompt?.audio_url}
           label="Play sound"
           style={{ marginBottom: 14 }}
+          onPlay={() => setReplayCount((prev) => prev + 1)}
         />
         <View style={styles.grid}>
           {options.map((opt) => (

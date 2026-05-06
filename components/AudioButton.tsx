@@ -7,13 +7,17 @@ type Props = {
   uri?: string | null;
   label?: string;
   style?: ViewStyle;
+  onPlay?: () => void;
 };
 
-export default function AudioButton({ uri, label = "Play", style }: Props) {
+export default function AudioButton({ uri, label = "Play", style, onPlay }: Props) {
   return (
     <TouchableOpacity
       style={[styles.btn, style]}
-      onPress={() => playAudio(uri)}
+      onPress={() => {
+        onPlay?.();
+        void playAudio(uri);
+      }}
       disabled={!uri}
       activeOpacity={0.8}
     >

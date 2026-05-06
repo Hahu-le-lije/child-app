@@ -23,6 +23,16 @@ export type ProfileStats = {
   badges: number;
 };
 
+export type SessionInsight = {
+  id: string;
+  gameType: string;
+  contentId: string;
+  score: number;
+  timeSpent: number;
+  createdAt: string;
+  metrics: Record<string, any> | null;
+};
+
 type SessionColumns = {
   hasTimeSpent: boolean;
   hasUpdatedAt: boolean;
@@ -36,7 +46,7 @@ function childScope(childId?: string | number | null) {
   };
 }
 
-function calculateStreak(dateRows: Array<{ day: string }>): number {
+function calculateStreak(dateRows: { day: string }[]): number {
   if (!dateRows.length) return 0;
 
   const uniqueDays = dateRows
@@ -70,7 +80,7 @@ function calculateStreak(dateRows: Array<{ day: string }>): number {
 
 function getSessionColumns(): SessionColumns {
   try {
-    const rows = db.getAllSync(`PRAGMA table_info(game_sessions)`) as Array<{ name: string }>;
+    const rows = db.getAllSync(`PRAGMA table_info(game_sessions)`) as { name: string }[];
     const names = new Set(rows.map((r) => String(r.name)));
     return {
       hasTimeSpent: names.has("time_spent"),
@@ -185,4 +195,46 @@ export function getProfileStats(childId?: string | number | null): ProfileStats 
     (uniqueGames >= 6 ? 1 : 0);
 
   return { points, dayStreak, badges };
+}
+
+export function getRecentSessionInsights(
+  childId?: string | number | null,
+  limit = 12
+): SessionInsight[] {
+  const { whereClause, params } = childScope(childId);
+  const rows = db.getAllSync(
+    `
+      SELECT
+        id,
+        game_type as gameType,
+        content_id as contentId,
+        score,
+        COALESCE(time_spent, 0) as timeSpent,
+        created_at as createdAt,
+        metrics
+      FROM game_sessions
+      ${whereClause}
+      ORDER BY datetime(COALESCE(updated_at, created_at)) DESC
+      LIMIT ?
+    `,
+    [...params, limit]
+  ) as any[];
+
+  return rows.map((row) => {
+    let parsedMetrics: Record<string, any> | null = null;
+    try {
+      parsedMetrics = row.metrics ? JSON.parse(String(row.metrics)) : null;
+    } catch {
+      parsedMetrics = null;
+    }
+    return {
+      id: String(row.id ?? ""),
+      gameType: String(row.gameType ?? ""),
+      contentId: String(row.contentId ?? ""),
+      score: Number(row.score ?? 0),
+      timeSpent: Number(row.timeSpent ?? 0),
+      createdAt: String(row.createdAt ?? ""),
+      metrics: parsedMetrics,
+    };
+  });
 }

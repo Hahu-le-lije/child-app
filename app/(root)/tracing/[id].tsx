@@ -7,6 +7,9 @@ import { Audio } from 'expo-av';
 import { COLORS, SPACING, RADIUS } from '@/const';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { getUser } from '@/services/db/authStorage';
+import { upsertGameSession } from '@/services/db/gameSession.service';
+import { scoreTracing } from '@/services/gaming/scoring.service';
 
 const { width } = Dimensions.get('window');
 const CANVAS_SIZE = width + 100;
@@ -42,6 +45,7 @@ const FidelTracingScreen = () => {
   const soundRef = useRef<Audio.Sound | null>(null);
 
   const [eraserCount, setEraserCount] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const startTime = useRef(Date.now());
 
   const letterPath = useMemo(() => {
@@ -106,20 +110,48 @@ const FidelTracingScreen = () => {
 
     const accuracy = stroke * 0.4 + fill * 0.6;
 
-    const accuracyScore = accuracy * 80;
-    const neatnessScore = Math.max(0, (1 - eraserCount / 8)) * 10;
-    const speedScore = Math.max(0, Math.min(1, (40 - timeTaken) / 30)) * 10;
-
-    const finalScore = Math.max(accuracyScore + neatnessScore + speedScore, 40);
+    const scored = scoreTracing({
+      strokeAccuracy: accuracy,
+      eraserUsedCount: eraserCount,
+      retries: retryCount,
+      timeTakenSeconds: timeTaken,
+    });
 
     return {
-      score: Math.round(finalScore),
+      score: scored.finalScore,
       accuracy: Math.round(accuracy * 100),
+      timeTaken: Math.round(timeTaken),
+      skills: scored.skills,
     };
   };
 
   const handleNext = () => {
     const stats = calculateScore();
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+      const now = new Date().toISOString();
+      upsertGameSession({
+        id: `tracing_${user.id}_${Date.now()}`,
+        child_id: String(user.id),
+        game_type: "tracing",
+        content_id: currentQuestion.id,
+        score: stats.score,
+        time_spent: stats.timeTaken ?? 0,
+        metrics: {
+          letter: currentQuestion.lettertotrace,
+          stroke_accuracy: stats.accuracy,
+          stroke_order_correct: true,
+          time_taken: stats.timeTaken ?? 0,
+          retries: retryCount,
+          eraser_used_count: eraserCount,
+          skills: stats.skills,
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
 
     Alert.alert(
       "Result",
@@ -142,7 +174,8 @@ const FidelTracingScreen = () => {
     drawPath.value = Skia.Path.Make();
     drawPath.modify();
     progress.value = 0;
-    setEraserCount(0);
+    setEraserCount((prev) => prev + 1);
+    setRetryCount((prev) => prev + 1);
     startTime.current = Date.now();
   };
 

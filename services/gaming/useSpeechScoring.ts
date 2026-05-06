@@ -3,11 +3,13 @@ import { Audio } from "expo-av";
 import { audioPronouncation } from "../api/gaming.api";
 import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
+import { scorePronunciation } from "./scoring.service";
 
 export const useSpeechScoring = () => {
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [lastScore, setLastScore] = useState<number | null>(null);
+    const [attempts, setAttempts] = useState(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     
@@ -44,6 +46,8 @@ export const useSpeechScoring = () => {
                 alert("Recording is too short. Please hold and speak a little longer.");
                 return;
             }
+            const nextAttempts = attempts + 1;
+            setAttempts(nextAttempts);
             setIsAnalyzing(true);
             try {
                 const result = await audioPronouncation(uri, targetWord);
@@ -53,15 +57,25 @@ export const useSpeechScoring = () => {
                   if (user?.id) {
                     const now = new Date().toISOString();
                     const sessionId = `spk_${user.id}_${Date.now()}`;
+                    const scored = scorePronunciation({
+                      pronunciationScore: Number(result.score ?? 0),
+                      attempts: nextAttempts,
+                      clarityScore: Number(result.score ?? 0),
+                    });
                     upsertGameSession({
                       id: sessionId,
                       child_id: String(user.id),
                       game_type: "pronunciation",
                       content_id: targetWord,
-                      score: Number(result.score ?? 0),
+                      score: scored.finalScore,
                       time_spent: durationMs != null ? Math.round(durationMs / 1000) : 0,
                       metrics: {
                         targetWord,
+                        attempts: nextAttempts,
+                        duration: durationMs != null ? Math.round(durationMs / 1000) : 0,
+                        pronunciation_score: Number(result.score ?? 0),
+                        clarity_score: Number(result.score ?? 0),
+                        skills: scored.skills,
                         audio_uri: uri,
                         duration_ms: durationMs,
                         raw: result,
