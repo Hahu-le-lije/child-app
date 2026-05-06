@@ -4,10 +4,16 @@ import { COLORS,  FONTS,  } from '@/const';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSpeechScoring } from '@/services/gaming/useSpeechScoring';
+import WordDetailSheet from '@/components/WordDetailSheet';
+import { useWordDetails } from '@/services/gaming/useWordDetails';
+import { useLanguageStore } from '@/store/languageStore';
 const Speakup = () => {
   const router=useRouter()
+  const [selectedWord, setSelectedWord] = React.useState<string | null>(null);
   
   const { recordForThreeSecondsAndScore, isAnalyzing, lastScore } = useSpeechScoring();
+  const { fetchExplanation, explanation, loading, error, clearExplanation } = useWordDetails();
+  const language = useLanguageStore((state) => state.language);
 
   const pronunciationData = {
     levels: {
@@ -29,6 +35,11 @@ const Speakup = () => {
 
   const handlePress = async () => {
     await recordForThreeSecondsAndScore(currentGame.word);
+  };
+
+  const handleWordTap = async () => {
+    setSelectedWord(currentGame.word);
+    await fetchExplanation(currentGame.word, language);
   };
 
   return (
@@ -63,7 +74,9 @@ const Speakup = () => {
 
       
         <View style={styles.wordSection}>
-          <Text style={styles.wordText}>{currentGame.word}</Text>
+          <TouchableOpacity onPress={handleWordTap}>
+            <Text style={styles.wordText}>{currentGame.word}</Text>
+          </TouchableOpacity>
           {lastScore !== null && (
             <Text style={[
               styles.feedbackText, 
@@ -106,6 +119,17 @@ const Speakup = () => {
           <Text style={styles.timerNote}>Records ~3 seconds then submits</Text>
         </View>
       </View>
+      <WordDetailSheet
+        isVisible={!!selectedWord}
+        onClose={() => {
+          setSelectedWord(null);
+          clearExplanation();
+        }}
+        selectedWord={selectedWord}
+        details={explanation}
+        loading={loading}
+        error={error}
+      />
     </SafeAreaView>
   );
 };

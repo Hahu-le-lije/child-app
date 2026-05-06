@@ -1,5 +1,8 @@
 import GameLayout from "@/components/GameLayout";
+import WordDetailSheet from "@/components/WordDetailSheet";
 import { getGameContent } from "@/services/cms/gameContentService";
+import { useWordDetails } from "@/services/gaming/useWordDetails";
+import { useLanguageStore } from "@/store/languageStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -124,6 +127,7 @@ const StoryQuizLevel = () => {
     message: "",
   });
   const [completed, setCompleted] = useState(false);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [stats, setStats] = useState<SessionStats>({
     total: 0,
     correct: 0,
@@ -132,6 +136,8 @@ const StoryQuizLevel = () => {
   });
 
   const startRef = useRef(Date.now());
+  const { fetchExplanation, explanation, loading: detailsLoading, error: detailsError, clearExplanation } = useWordDetails();
+  const language = useLanguageStore((state) => state.language);
 
   useEffect(() => {
     let active = true;
@@ -161,6 +167,21 @@ const StoryQuizLevel = () => {
   }, [levelId]);
 
   const currentQuestion = quiz[currentIndex] ?? null;
+
+  const clickableWords = useMemo(() => {
+    if (!currentQuestion?.storyContent) return [];
+    const normalized = currentQuestion.storyContent
+      .replace(/[.,!?;:()[\]{}"']/g, " ")
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length > 1);
+    return Array.from(new Set(normalized)).slice(0, 8);
+  }, [currentQuestion?.storyContent]);
+
+  const handleWordPress = async (word: string) => {
+    setSelectedWord(word);
+    await fetchExplanation(word, language);
+  };
 
   const accuracy = stats.total === 0 ? 0 : stats.correct / stats.total;
   const avgTime =
@@ -377,6 +398,19 @@ const StoryQuizLevel = () => {
 
             <Text style={styles.storyTitle}>{currentQuestion.storyTitle}</Text>
             <Text style={styles.storyText}>{currentQuestion.storyContent}</Text>
+            {!!clickableWords.length && (
+              <View style={styles.keywordsWrap}>
+                {clickableWords.map((word) => (
+                  <TouchableOpacity
+                    key={word}
+                    style={styles.keywordChip}
+                    onPress={() => handleWordPress(word)}
+                  >
+                    <Text style={styles.keywordText}>{word}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
 
           <View style={styles.questionCard}>
@@ -421,6 +455,17 @@ const StoryQuizLevel = () => {
           </View>
         </ScrollView>
       </View>
+      <WordDetailSheet
+        isVisible={!!selectedWord}
+        onClose={() => {
+          setSelectedWord(null);
+          clearExplanation();
+        }}
+        selectedWord={selectedWord}
+        details={explanation}
+        loading={detailsLoading}
+        error={detailsError}
+      />
     </GameLayout>
   );
 };
@@ -495,6 +540,23 @@ const styles = StyleSheet.create({
     fontFamily: "Abyssinica_SIL",
     fontSize: 18,
     lineHeight: 30,
+  },
+  keywordsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 14,
+  },
+  keywordChip: {
+    backgroundColor: "rgba(123,145,255,0.25)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  keywordText: {
+    color: "#CFE1FF",
+    fontFamily: "Abyssinica_SIL",
+    fontSize: 14,
   },
   questionCard: {
     backgroundColor: "#25294A",

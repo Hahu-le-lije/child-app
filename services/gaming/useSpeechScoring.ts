@@ -40,6 +40,10 @@ export const useSpeechScoring = () => {
             : null;
 
         if (uri) {
+            if (durationMs !== null && durationMs < 800) {
+                alert("Recording is too short. Please hold and speak a little longer.");
+                return;
+            }
             setIsAnalyzing(true);
             try {
                 const result = await audioPronouncation(uri, targetWord);
@@ -73,7 +77,8 @@ export const useSpeechScoring = () => {
                 }
                 return result;
             } catch (err) {
-                alert("Check your connection!");
+                const message = err instanceof Error ? err.message : "Check your connection!";
+                alert(message);
             } finally {
                 setIsAnalyzing(false);
             }

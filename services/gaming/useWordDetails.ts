@@ -1,41 +1,55 @@
 import { useState } from 'react';
 import { wordExplanation } from '../api/gaming.api';
 
-interface WordData {
-    meaning: string;
-    example?: string;
-    phonetic?: string;
+export interface LearningContentItem {
+  amharic: string;
+  translation?: string;
+}
+
+export interface WordData {
+  word: string;
+  definition: string;
+  phonetic?: string;
+  learning_content?: LearningContentItem[];
 }
 
 export const useWordDetails = () => {
-    const [explanation, setExplanation] = useState<WordData | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<WordData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const fetchExplanation = async (word: string, language: string = 'am') => {
-        setLoading(true);
-        setError(null);
-        
-        try {
-            const data = await wordExplanation(word, language);
-            setExplanation(data);
-            return data;
-        } catch (err) {
-            const msg = "Could not find the meaning. Try another word!";
-            setError(msg);
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const fetchExplanation = async (word: string, language: string = 'amharic') => {
+    setLoading(true);
+    setError(null);
+    setExplanation(null);
 
-    const clearExplanation = () => setExplanation(null);
+    try {
+      const data = await wordExplanation(word, language);
+      if (!data || !data.definition) {
+        throw new Error('Invalid response');
+      }
+      setExplanation(data as WordData);
+      return data as WordData;
+    } catch (err) {
+      const msg = 'Could not find the meaning. Try another word!';
+      setError(msg);
+      console.error(err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return { 
-        fetchExplanation, 
-        explanation, 
-        loading, 
-        error, 
-        clearExplanation 
-    };
+  const clearExplanation = () => {
+    setExplanation(null);
+    setError(null);
+  };
+
+  return {
+    fetchExplanation,
+    explanation,
+    loading,
+    error,
+    clearExplanation,
+  };
 };

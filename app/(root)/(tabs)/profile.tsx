@@ -20,10 +20,12 @@ import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { useSoundStore } from '@/store/soundStore';
 import { useClickSound } from '@/hooks/useSound';
 import { ProfileStats, getProfileStats } from '@/services/db/progressStats.service';
+import { useLanguageStore } from '@/store/languageStore';
 
 const Profile = () => {
   const user = useAuthStore((state) => state.user);
   const { soundEnabled, setSoundEnabled } = useSoundStore();
+  const { language, setLanguage } = useLanguageStore();
   const logout = useAuthStore((state) => state.logout);
   const router = useRouter();
 
@@ -134,6 +136,49 @@ const Profile = () => {
               trackColor={{ false: COLORS.border, true: '#20BF6B' }}
               thumbColor="#FFF"
             />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <View style={[styles.settingIcon, styles.languageIcon]}>
+                <MaterialCommunityIcons name="translate" size={22} color="#7FD1FF" />
+              </View>
+              <Text style={styles.settingText}>Language</Text>
+            </View>
+            <View style={styles.languageButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.languageBtn,
+                  language === 'amharic' && styles.languageBtnActive,
+                ]}
+                onPress={() => setLanguage('amharic')}
+              >
+                <Text
+                  style={[
+                    styles.languageBtnText,
+                    language === 'amharic' && styles.languageBtnTextActive,
+                  ]}
+                >
+                  Amharic
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.languageBtn,
+                  language === 'english' && styles.languageBtnActive,
+                ]}
+                onPress={() => setLanguage('english')}
+              >
+                <Text
+                  style={[
+                    styles.languageBtnText,
+                    language === 'english' && styles.languageBtnTextActive,
+                  ]}
+                >
+                  English
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -294,6 +339,32 @@ headerTitle: {
     color: COLORS.textPrimary,
     fontSize: 16,
     fontFamily: FONTS.semi,
+  },
+  languageIcon: {
+    backgroundColor: '#7FD1FF20',
+  },
+  languageButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  languageBtn: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  languageBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  languageBtnText: {
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+  },
+  languageBtnTextActive: {
+    color: '#FFFFFF',
   },
 
   logoutBtn: {

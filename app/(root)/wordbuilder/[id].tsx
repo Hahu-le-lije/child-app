@@ -6,6 +6,8 @@ import * as Haptics from 'expo-haptics';
 import GameLayout from '@/components/GameLayout';
 import WordDetailSheet from '@/components/WordDetailSheet';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useWordDetails } from '@/services/gaming/useWordDetails';
+import { useLanguageStore } from '@/store/languageStore';
 
 const { width } = Dimensions.get('window');
 const WHEEL = width * 0.85;
@@ -32,13 +34,20 @@ const WordBuilder = () => {
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
-  const [selectedWordInfo, setSelectedWordInfo] = useState<any>(null);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const { fetchExplanation, explanation, loading, error, clearExplanation } = useWordDetails();
+  const language = useLanguageStore((state) => state.language);
 
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [feedbackText, setFeedbackText] = useState<string | null>(null);
 
   const pathRef = useRef<number[]>([]);
+
+  const handleWordPress = async (word: string) => {
+    setSelectedWord(word);
+    await fetchExplanation(word, language);
+  };
 
   const letterPositions = useMemo(() => {
     return letters.map((_, i) => {
@@ -214,7 +223,7 @@ const WordBuilder = () => {
           {INITIAL_DATA.correctWords.map((item, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => foundWords.includes(item.wordtext) && setSelectedWordInfo(item)}
+              onPress={() => foundWords.includes(item.wordtext) && handleWordPress(item.wordtext)}
               style={[styles.wordSlot, foundWords.includes(item.wordtext) && styles.wordFound]}
             >
               <Text style={styles.wordSlotText}>
@@ -228,9 +237,15 @@ const WordBuilder = () => {
 
 
         <WordDetailSheet
-          isVisible={!!selectedWordInfo}
-          onClose={() => setSelectedWordInfo(null)}
-          word={selectedWordInfo}
+          isVisible={!!selectedWord}
+          onClose={() => {
+            setSelectedWord(null);
+            clearExplanation();
+          }}
+          selectedWord={selectedWord}
+          details={explanation}
+          loading={loading}
+          error={error}
         />
 
       </View>
