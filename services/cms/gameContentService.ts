@@ -195,9 +195,9 @@ export async function getGameContent(
       }>;
       const row = rows.find((r) => r.id === levelId);
       if (!row) return [];
-      const choices = Q.getFillChoices(childId, levelId).map(
-        (c: { choice: string }) => c.choice,
-      );
+      const choices = (
+        Q.getFillChoices(childId, levelId) as Array<{ choice: string }>
+      ).map((c) => c.choice);
       return [
         {
           levelId: row.id,

@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import { getInfoAsync } from "expo-file-system/legacy";
 
 function getGamingBaseUrl(): string {
   const raw =
@@ -25,7 +25,7 @@ export const audioPronouncation = async (audioUri: string, targetWord: string) =
   if (!base) throw new Error("Set EXPO_PUBLIC_GAMING_API_URL (or EXPO_PUBLIC_API_URL)");
 
   try {
-    const info = await FileSystem.getInfoAsync(audioUri, { size: true });
+    const info = await getInfoAsync(audioUri);
     if (!info.exists) {
       throw new Error("Recorded audio file not found on device.");
     }

@@ -323,7 +323,7 @@ const LevelMap = ({
               onPress={() => setGuideVisible(false)}
               style={styles.modalButton}
             >
-              <Text style={styles.modalButtonText}>Let's go</Text>
+              <Text style={styles.modalButtonText}>{"Let's go"}</Text>
             </TouchableOpacity>
           </View>
         </View>

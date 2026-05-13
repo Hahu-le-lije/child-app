@@ -1,4 +1,13 @@
-import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import {
+  TouchableOpacity,
+  Text,
+  View,
+  StyleSheet,
+  type StyleProp,
+  type TextStyle,
+  type TouchableOpacityProps,
+  type ViewStyle,
+} from 'react-native';
 import React from 'react';
 import { useClickSound } from '@/hooks/useSound';
 
@@ -12,6 +21,18 @@ const COLORS = {
   outlineT:"black"
 };
 
+type ColorVariant = keyof typeof COLORS;
+
+type CustomButtonProps = TouchableOpacityProps & {
+  title?: string;
+  bgVariant?: ColorVariant;
+  textVariant?: ColorVariant;
+  IconLeft?: React.ComponentType<{ style?: StyleProp<TextStyle> }> | null;
+  IconRight?: React.ComponentType<{ style?: StyleProp<TextStyle> }> | null;
+  containerStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+};
+
 const CustomButton = ({
   onPress,
   title,
@@ -20,24 +41,26 @@ const CustomButton = ({
   IconLeft,
   IconRight,
   style,
+  containerStyle,
+  textStyle,
   ...props
-}) => {
+}: CustomButtonProps) => {
   const playClickSound = useClickSound();
 
-  const handlePress = async () => {
+  const handlePress: TouchableOpacityProps["onPress"] = async (e) => {
     await playClickSound();
-    onPress?.();
+    onPress?.(e);
   };
 
   return (
     <TouchableOpacity
       onPress={handlePress}
-      style={[styles.button, { backgroundColor: COLORS[bgVariant] }, style]}
+      style={[styles.button, { backgroundColor: COLORS[bgVariant] }, containerStyle, style]}
       {...props}
     >
       <View style={styles.content}>
         {IconLeft && <IconLeft style={styles.icon} />}
-        <Text style={[styles.text, { color: COLORS[textVariant] }]}>{title}</Text>
+        <Text style={[styles.text, { color: COLORS[textVariant] }, textStyle]}>{title}</Text>
         {IconRight && <IconRight style={styles.icon} />}
       </View>
     </TouchableOpacity>

@@ -122,7 +122,7 @@ async function importStories(
       title: String(story.title ?? "Story"),
       pagecount,
       thumbnail_path: thumbnailPath,
-      level_id: levelKey,
+      level_id: levelKey ?? undefined,
     });
 
     for (let i = 1; i <= pagecount; i++) {

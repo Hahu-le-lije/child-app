@@ -26,11 +26,11 @@ export const upsertGameSession=(gameSession:GameSession)=>{
         gameSession.updated_at,
     ])
 }
-export const getUnsyncedSessions = () => {
+export const getUnsyncedSessions = (): GameSession[] => {
   return db.getAllSync(`
     SELECT * FROM game_sessions
     WHERE synced = 0
-  `);
+  `) as GameSession[];
 };
 export const markSessionsAsSynced = (ids: string[]) => {
   const placeholders = ids.map(() => "?").join(",");
@@ -51,6 +51,6 @@ export const getMeta = (key: string)=>{
   const res = db.getFirstSync(
     `SELECT value FROM sync_meta WHERE key = ?`,
     [key]
-  );
-  return res?.value || null;
+  ) as { value: string } | null;
+  return res?.value ?? null;
 };

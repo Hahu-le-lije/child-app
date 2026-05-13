@@ -27,7 +27,7 @@ const Welcome = () => {
           </Text>
 
           <Text style={styles.subtitle}>
-            Ready to play and learn? {'\n'}Let's jump in! 🚀
+            Ready to play and learn? {'\n'}{"Let's jump in! 🚀"}
           </Text>
         </View>
 

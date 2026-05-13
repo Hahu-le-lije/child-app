@@ -19,16 +19,20 @@ export const getStoryQuestions = (childId: string, storyId: string) => {
   const questions = db.getAllSync(
     `SELECT * FROM story_questions WHERE child_id = ? AND story_id = ?`,
     [childId, storyId]
-  );
+  ) as Array<Record<string, unknown>>;
 
-  return questions.map((q: { id: number }) => {
+  return questions.map((q) => {
+    const id = Number(q.id);
     const choices = db.getAllSync(
       `SELECT choice_text FROM story_choices WHERE child_id = ? AND question_id = ?`,
-      [childId, q.id]
-    );
+      [childId, id]
+    ) as Array<{ choice_text: string }>;
     return {
       ...q,
-      choices: choices.map((c: { choice_text: string }) => c.choice_text),
+      id,
+      question_text: String(q.question_text ?? ""),
+      correct_answer: String(q.correct_answer ?? ""),
+      choices: choices.map((c) => c.choice_text),
     };
   });
 };
@@ -46,8 +50,8 @@ export const getStoryLevelSummaries = (childId: string) => {
     ORDER BY MIN(id)
     `,
     [childId]
-  );
-  return rows.map((r: { level_key: string; title: string }, i: number) => ({
+  ) as Array<{ level_key: string; title: string }>;
+  return rows.map((r, i: number) => ({
     id: r.level_key,
     level_number: i + 1,
     title: r.title ?? `Story ${i + 1}`,
@@ -81,8 +85,8 @@ export const getPictureQuestions = (childId: string, levelId: string) => {
   const questions = db.getAllSync(
     `SELECT * FROM picture_questions WHERE child_id = ? AND level_id = ?`,
     [childId, levelId]
-  );
-  return questions.map((q: { id: number }) => {
+  ) as Array<{ id: number } & Record<string, unknown>>;
+  return questions.map((q) => {
     const images = db.getAllSync(
       `SELECT * FROM picture_images WHERE child_id = ? AND question_id = ?`,
       [childId, q.id]
@@ -113,7 +117,7 @@ export const getWordBuilderData = (childId: string, levelId: string) => {
   const letters = db.getAllSync(
     `SELECT letter FROM letters WHERE child_id = ? AND level_id = ?`,
     [childId, levelId]
-  );
+  ) as Array<{ letter: string }>;
   const words = db.getAllSync(
     `SELECT * FROM words WHERE child_id = ? AND level_id = ?`,
     [childId, levelId]
@@ -125,7 +129,7 @@ export const getWordBuilderData = (childId: string, levelId: string) => {
     [childId, childId, levelId]
   );
   return {
-    letters: letters.map((l: { letter: string }) => l.letter),
+    letters: letters.map((l) => l.letter),
     words,
     hints,
   };

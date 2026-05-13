@@ -6,7 +6,7 @@ export const syncUp = async() => {
     if(!sessions.length) return;
     try{
     await sendSessions(sessions);
-    const ids=sessions.map((s:any)=>s.id);
+    const ids = sessions.map((s) => s.id);
     markSessionsAsSynced(ids);
     }catch(err){
         console.log("Sync up Failed",err)

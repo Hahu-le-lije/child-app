@@ -13,7 +13,7 @@ import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '@/store/authStore';
 import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { categories, GAMES } from '@/const';
-import { useRouter } from 'expo-router';
+import { Href, useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
@@ -57,7 +57,7 @@ const Home = () => {
         <View style={styles.catWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
             {categories.map((cat) => (
-              <TouchableOpacity key={cat.id} style={styles.catItem} activeOpacity={0.8} onPress={()=>router.push(`/(root)/${cat.route}`)}>
+              <TouchableOpacity key={cat.id} style={styles.catItem} activeOpacity={0.8} onPress={() => router.push(`/(root)/${cat.route}` as Href)}>
                 <View style={[styles.catCircle, { backgroundColor: cat.color }]}>
                   <MaterialCommunityIcons name={cat.icon as any} size={30} color="white" />
                 </View>
@@ -77,7 +77,7 @@ const Home = () => {
             <TouchableOpacity 
               key={game.id} 
               style={styles.gameCard}
-              onPress={() => router.push(`/(root)/${game.route}`)}
+              onPress={() => router.push(`/(root)/${game.route}` as Href)}
               activeOpacity={0.9}
             >
              

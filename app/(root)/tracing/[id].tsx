@@ -249,10 +249,10 @@ function getClosestProgressOnPath(x: number, y: number, path: any): number {
 
     for (let i = 0; i <= 100; i++) {
       const t = i / 100;
-      const pos = contour.getPosTan(t * length);
+      const [position] = contour.getPosTan(t * length);
 
-      const dx = pos.x - x;
-      const dy = pos.y - y;
+      const dx = position.x - x;
+      const dy = position.y - y;
       const dist = dx * dx + dy * dy;
 
       if (dist < minDist && dist < FOLLOW_THRESHOLD * FOLLOW_THRESHOLD) {
@@ -280,9 +280,9 @@ function getStrokeAccuracy(userPath: any, targetPath: any): number {
     const length = contour.length();
 
     for (let i = 0; i <= numSamples; i++) {
-      const pos = contour.getPosTan((i / numSamples) * length);
+      const [position] = contour.getPosTan((i / numSamples) * length);
 
-      if (isPointNearPath(pos.x, pos.y, targetPath, threshold)) good++;
+      if (isPointNearPath(position.x, position.y, targetPath, threshold)) good++;
       total++;
     }
 
@@ -303,9 +303,9 @@ function getFillAccuracy(userPath: any, targetPath: any): number {
     const length = contour.length();
 
     for (let i = 0; i <= numSamples; i++) {
-      const pos = contour.getPosTan((i / numSamples) * length);
+      const [position] = contour.getPosTan((i / numSamples) * length);
 
-      if (targetPath.contains(pos.x, pos.y)) inside++;
+      if (targetPath.contains(position.x, position.y)) inside++;
       total++;
     }
 
@@ -323,10 +323,10 @@ function isPointNearPath(x: number, y: number, path: any, threshold: number) {
     const length = contour.length();
 
     for (let i = 0; i <= 40; i++) {
-      const pos = contour.getPosTan((i / 40) * length);
+      const [position] = contour.getPosTan((i / 40) * length);
 
-      const dx = pos.x - x;
-      const dy = pos.y - y;
+      const dx = position.x - x;
+      const dy = position.y - y;
 
       if (dx * dx + dy * dy <= threshold * threshold) return true;
     }

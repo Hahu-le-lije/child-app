@@ -1,4 +1,4 @@
-import type { StyleProp, TextInputProps, TextStyle, TouchableOpacityProps, ViewStyle } from "react-native";
+import type { StyleProp, TextInputProps, TextStyle, TouchableOpacityProps, ViewStyle, ImageStyle } from "react-native";
 declare interface ButtonProps extends TouchableOpacityProps {
     title: string;
     bgVariant?: "primary" | "secondary" | "danger" | "outline" | "success";
@@ -28,7 +28,7 @@ declare interface InputFieldProps extends TextInputProps {
     secureTextEntry?: boolean;
     labelStyle?: StyleProp<TextStyle>;
     containerStyle?: StyleProp<ViewStyle>;
-    inputStyle?: StyleProp<TextStyle>;
-    iconStyle?: StyleProp<ViewStyle>;
+    inputStyle?: StyleProp<ViewStyle>;
+    iconStyle?: StyleProp<ImageStyle>;
     className?: string;
 }
