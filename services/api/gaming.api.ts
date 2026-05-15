@@ -10,19 +10,38 @@ function getGamingBaseUrl(): string {
 
 function guessAudioMime(uri: string): { name: string; type: string } {
   const lower = uri.toLowerCase();
-  if (lower.endsWith(".m4a")) return { name: "recording.m4a", type: "audio/m4a" };
-  if (lower.endsWith(".caf")) return { name: "recording.caf", type: "audio/x-caf" };
-  if (lower.endsWith(".aac")) return { name: "recording.aac", type: "audio/aac" };
-  if (lower.endsWith(".wav")) return { name: "recording.wav", type: "audio/wav" };
-  if (lower.endsWith(".3gp")) return { name: "recording.3gp", type: "audio/3gpp" };
-  if (lower.endsWith(".mp4")) return { name: "recording.mp4", type: "audio/mp4" };
-  if (lower.endsWith(".webm")) return { name: "recording.webm", type: "audio/webm" };
+  if (lower.endsWith(".m4a"))
+    return { name: "recording.m4a", type: "audio/m4a" };
+  if (lower.endsWith(".caf"))
+    return { name: "recording.caf", type: "audio/x-caf" };
+  if (lower.endsWith(".aac"))
+    return { name: "recording.aac", type: "audio/aac" };
+  if (lower.endsWith(".wav"))
+    return { name: "recording.wav", type: "audio/wav" };
+  if (lower.endsWith(".3gp"))
+    return { name: "recording.3gp", type: "audio/3gpp" };
+  if (lower.endsWith(".mp4"))
+    return { name: "recording.mp4", type: "audio/mp4" };
+  if (lower.endsWith(".webm"))
+    return { name: "recording.webm", type: "audio/webm" };
   return { name: "recording.m4a", type: "audio/m4a" };
 }
 
-export const audioPronouncation = async (audioUri: string, targetWord: string) => {
+function normalizeLanguage(language: string): string {
+  if (language === "am" || language === "amharic") {
+    return "amharic";
+  }
+
+  return "english";
+}
+
+export const audioPronouncation = async (
+  audioUri: string,
+  targetWord: string,
+) => {
   const base = getGamingBaseUrl();
-  if (!base) throw new Error("Set EXPO_PUBLIC_GAMING_API_URL (or EXPO_PUBLIC_API_URL)");
+  if (!base)
+    throw new Error("Set EXPO_PUBLIC_GAMING_API_URL (or EXPO_PUBLIC_API_URL)");
 
   try {
     const info = await getInfoAsync(audioUri);
@@ -36,10 +55,10 @@ export const audioPronouncation = async (audioUri: string, targetWord: string) =
     const meta = guessAudioMime(audioUri);
     const buildFilePart = () =>
       ({
-      uri: audioUri,
-      type: meta.type,
-      name: meta.name,
-      } as any);
+        uri: audioUri,
+        type: meta.type,
+        name: meta.name,
+      }) as any;
 
     const sendWithField = async (fieldName: "audio" | "file") => {
       const formData = new FormData();
@@ -60,7 +79,9 @@ export const audioPronouncation = async (audioUri: string, targetWord: string) =
       let retryNeeded = false;
       try {
         const errorData = (await res.json()) as any;
-        const errMsg = String(errorData?.error || errorData?.message || "").toLowerCase();
+        const errMsg = String(
+          errorData?.error || errorData?.message || "",
+        ).toLowerCase();
         retryNeeded =
           errMsg.includes("no audio") ||
           errMsg.includes("unexpected field") ||
@@ -95,26 +116,29 @@ export const audioPronouncation = async (audioUri: string, targetWord: string) =
     throw error;
   }
 };
-export const wordExplanation=async(word:string,language:string)=>{
-try{
+export const wordExplanation = async (word: string, language: string) => {
+  try {
     const base = getGamingBaseUrl();
-    if (!base) throw new Error("Set EXPO_PUBLIC_GAMING_API_URL (or EXPO_PUBLIC_API_URL)");
-    const res=await fetch(`${base}/game/word`,{
-        method:"POST",
-        headers:{
-            "Content-Type": "application/json",
-        },
-        body:JSON.stringify({
-            word:word,
-            language:language
-        })
-    })
-    if(!res.ok){
-        throw new Error("error in getting the word meaning")
+    if (!base)
+      throw new Error(
+        "Set EXPO_PUBLIC_GAMING_API_URL (or EXPO_PUBLIC_API_URL)",
+      );
+    const res = await fetch(`${base}/game/word`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        word: word,
+        language: normalizeLanguage(language),
+      }),
+    });
+    if (!res.ok) {
+      throw new Error("error in getting the word meaning");
     }
-return await res.json()
-}catch(error){
-    console.log("error in sending the word", error)
+    return await res.json();
+  } catch (error) {
+    console.log("error in sending the word", error);
     throw error;
-}
-}
+  }
+};
