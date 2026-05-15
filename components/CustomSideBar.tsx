@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,20 +10,21 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter, type Href } from 'expo-router';
-import { useAuthStore } from '@/store/authStore';
-import { images,COLORS,SPACING,RADIUS,FONTS } from '@/const';
-import SidebarItem from './SideBarItem';
-
-
+} from "react-native";
+import type { DrawerContentComponentProps } from "@react-navigation/drawer";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter, type Href } from "expo-router";
+import { useAuthStore } from "@/store/authStore";
+import { useLanguageStore } from "@/store/languageStore";
+import { images, COLORS, SPACING, RADIUS, FONTS } from "@/const";
+import SidebarItem from "./SideBarItem";
+import { t } from "@/services/locales";
 
 const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const language = useLanguageStore((state) => state.language);
 
   const [parentLock, setParentLock] = useState<{
     href: Href;
@@ -31,7 +32,7 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
     answer: number;
   } | null>(null);
 
-  const [parentAnswerInput, setParentAnswerInput] = useState('');
+  const [parentAnswerInput, setParentAnswerInput] = useState("");
 
   const closeDrawer = useCallback(() => {
     navigation.closeDrawer();
@@ -42,14 +43,14 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
       closeDrawer();
       router.push(href);
     },
-    [closeDrawer, router]
+    [closeDrawer, router],
   );
 
   const openParentLock = useCallback((href: Href) => {
     const n1 = Math.floor(Math.random() * 9) + 1;
     const n2 = Math.floor(Math.random() * 9) + 1;
 
-    setParentAnswerInput('');
+    setParentAnswerInput("");
     setParentLock({
       href,
       prompt: `${n1} + ${n2} = ?`,
@@ -67,22 +68,24 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
       setParentLock(null);
       navigateAndClose(target);
     } else {
-      Alert.alert('Incorrect', 'Access denied.');
+      Alert.alert(
+        t(language, "sidebar.incorrectTitle"),
+        t(language, "sidebar.accessDenied"),
+      );
     }
-  }, [parentAnswerInput, parentLock, navigateAndClose]);
+  }, [language, parentAnswerInput, parentLock, navigateAndClose]);
 
   const handleLogout = useCallback(() => {
     closeDrawer();
     logout();
-    router.replace('/(auth)/log-in');
+    router.replace("/(auth)/log-in");
   }, [closeDrawer, logout]);
 
   return (
     <View style={styles.container}>
-      
       <Modal visible={!!parentLock} transparent animationType="fade">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.modalBackdrop}
         >
           <TouchableOpacity
@@ -92,10 +95,14 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
           />
 
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Parental lock</Text>
+            <Text style={styles.modalTitle}>
+              {t(language, "sidebar.parentalLock")}
+            </Text>
 
             <Text style={styles.modalPrompt}>
-              {parentLock ? `Solve: ${parentLock.prompt}` : ''}
+              {parentLock
+                ? t(language, "sidebar.solve", { prompt: parentLock.prompt })
+                : ""}
             </Text>
 
             <TextInput
@@ -103,7 +110,7 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
               value={parentAnswerInput}
               onChangeText={setParentAnswerInput}
               keyboardType="number-pad"
-              placeholder="Your answer"
+              placeholder={t(language, "sidebar.yourAnswer")}
               placeholderTextColor={COLORS.muted}
               autoFocus
             />
@@ -113,14 +120,18 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
                 style={styles.modalBtnGhost}
                 onPress={() => setParentLock(null)}
               >
-                <Text style={styles.modalBtnGhostText}>Cancel</Text>
+                <Text style={styles.modalBtnGhostText}>
+                  {t(language, "sidebar.cancel")}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.modalBtnPrimary}
                 onPress={submitParentLock}
               >
-                <Text style={styles.modalBtnText}>Continue</Text>
+                <Text style={styles.modalBtnText}>
+                  {t(language, "sidebar.continue")}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -133,41 +144,41 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
         </View>
 
         <Text style={styles.profileName}>
-          {user?.username || 'Little Hero'}
+          {user?.username || t(language, "sidebar.littleHero")}
         </Text>
       </View>
 
       <View style={styles.divider} />
 
-
       <View style={styles.menuSection}>
         <SidebarItem
           icon="controller-classic"
-          label="My Games"
-          onPress={() => navigateAndClose('/(root)/(tabs)/home')}
+          label={t(language, "sidebar.myGames")}
+          onPress={() => navigateAndClose("/(root)/(tabs)/home")}
         />
 
         <SidebarItem
           icon="book-open-page-variant"
-          label="Sticker Book"
-          onPress={() => navigateAndClose('/(root)/(tabs)/progress')}
+          label={t(language, "sidebar.stickerBook")}
+          onPress={() => navigateAndClose("/(root)/(tabs)/progress")}
         />
 
         <SidebarItem
           icon="account"
-          label="Profile"
-          onPress={() => navigateAndClose('/(root)/(tabs)/profile')}
+          label={t(language, "sidebar.profile")}
+          onPress={() => navigateAndClose("/(root)/(tabs)/profile")}
         />
       </View>
 
-   
       <View style={styles.parentSection}>
-        <Text style={styles.parentTitle}>PARENT ZONE</Text>
+        <Text style={styles.parentTitle}>
+          {t(language, "sidebar.parentZone")}
+        </Text>
 
         <SidebarItem
           icon="cloud-download"
-          label="Get New Content"
-          onPress={() => openParentLock('/(root)/(tabs)/content')}
+          label={t(language, "sidebar.getNewContent")}
+          onPress={() => openParentLock("/(root)/(tabs)/content")}
           variant="secondary"
         />
 
@@ -177,19 +188,16 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
             size={20}
             color={COLORS.danger}
           />
-          <Text style={styles.logoutText}>Switch Account</Text>
+          <Text style={styles.logoutText}>
+            {t(language, "sidebar.switchAccount")}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-
-
-
 export default CustomSidebar;
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -199,7 +207,7 @@ const styles = StyleSheet.create({
   },
 
   profileHeader: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 40,
     marginBottom: SPACING.md,
   },
@@ -209,8 +217,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: RADIUS.round,
     backgroundColor: COLORS.card,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
     borderColor: COLORS.primary,
   },
@@ -251,8 +259,8 @@ const styles = StyleSheet.create({
   },
 
   logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: SPACING.md,
   },
 
@@ -262,12 +270,10 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
   },
 
-  
-
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
     padding: SPACING.lg,
   },
 
@@ -305,8 +311,8 @@ const styles = StyleSheet.create({
   },
 
   modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
 
   modalBtnPrimary: {
@@ -323,7 +329,7 @@ const styles = StyleSheet.create({
   },
 
   modalBtnText: {
-    color: '#fff',
+    color: "#fff",
     fontFamily: FONTS.semi,
   },
 

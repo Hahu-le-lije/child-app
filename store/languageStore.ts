@@ -1,34 +1,64 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
+import { create } from "zustand";
 
-export type AppLanguage = 'amharic' | 'english';
+export type AppLanguage = "en" | "am";
+
+const LANGUAGE_KEY = "app_language";
 
 type LanguageState = {
   language: AppLanguage;
-  setLanguage: (language: AppLanguage) => void;
+  hydrated: boolean;
+  setLanguage: (language: AppLanguage) => Promise<void>;
+  hydrateLanguage: () => Promise<void>;
 };
 
-export const useLanguageStore = create<LanguageState>()(
-  persist(
-    (set) => ({
-      language: 'amharic',
-      setLanguage: (language) => set({ language }),
-    }),
-    {
-      name: 'app-language-settings',
-      storage: {
-        getItem: async (name) => {
-          const value = await AsyncStorage.getItem(name);
-          return value ? JSON.parse(value) : null;
-        },
-        setItem: async (name, value) => {
-          await AsyncStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: async (name) => {
-          await AsyncStorage.removeItem(name);
-        },
-      },
+async function readStoredLanguage(): Promise<AppLanguage | null> {
+  if (Platform.OS === "web") {
+    try {
+      const value = globalThis?.localStorage?.getItem(LANGUAGE_KEY);
+      if (value === "en" || value === "am") {
+        return value;
+      }
+    } catch {
+      return null;
     }
-  )
-);
+    return null;
+  }
+
+  const value = await SecureStore.getItemAsync(LANGUAGE_KEY);
+  return value === "en" || value === "am" ? value : null;
+}
+
+async function persistLanguage(language: AppLanguage) {
+  if (Platform.OS === "web") {
+    try {
+      globalThis?.localStorage?.setItem(LANGUAGE_KEY, language);
+    } catch {
+      // ignore web storage failures
+    }
+    return;
+  }
+
+  await SecureStore.setItemAsync(LANGUAGE_KEY, language);
+}
+
+export const useLanguageStore = create<LanguageState>()((set) => ({
+  language: "en",
+  hydrated: false,
+  setLanguage: async (language) => {
+    set({ language });
+    await persistLanguage(language);
+  },
+  hydrateLanguage: async () => {
+    try {
+      const stored = await readStoredLanguage();
+      set({
+        language: stored ?? "en",
+        hydrated: true,
+      });
+    } catch {
+      set({ language: "en", hydrated: true });
+    }
+  },
+}));

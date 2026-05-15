@@ -11,13 +11,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import * as Progress from "react-native-progress";
 
@@ -118,6 +118,7 @@ const StoryQuizLevel = () => {
 
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{
@@ -132,9 +133,15 @@ const StoryQuizLevel = () => {
   const [completed, setCompleted] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [keywordsClicked, setKeywordsClicked] = useState(0);
-  const [uniqueKeywordsClicked, setUniqueKeywordsClicked] = useState<string[]>([]);
-  const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
-  const [questionResults, setQuestionResults] = useState<Record<string, boolean>>({});
+  const [uniqueKeywordsClicked, setUniqueKeywordsClicked] = useState<string[]>(
+    [],
+  );
+  const [questionAttempts, setQuestionAttempts] = useState<
+    Record<string, number>
+  >({});
+  const [questionResults, setQuestionResults] = useState<
+    Record<string, boolean>
+  >({});
   const [stats, setStats] = useState<SessionStats>({
     total: 0,
     correct: 0,
@@ -145,7 +152,13 @@ const StoryQuizLevel = () => {
   const startRef = useRef(Date.now());
   const sessionStartRef = useRef(Date.now());
   const savedRef = useRef(false);
-  const { fetchExplanation, explanation, loading: detailsLoading, error: detailsError, clearExplanation } = useWordDetails();
+  const {
+    fetchExplanation,
+    explanation,
+    loading: detailsLoading,
+    error: detailsError,
+    clearExplanation,
+  } = useWordDetails();
   const language = useLanguageStore((state) => state.language);
 
   useEffect(() => {
@@ -153,25 +166,38 @@ const StoryQuizLevel = () => {
 
     const load = async () => {
       setLoading(true);
-      const rows = (await getGameContent("story", levelId)) as StoryRow[];
-      if (!active) return;
+      setLoadError(null);
 
-      const items = rows.flatMap((story) => parseQuizQuestions(story));
+      try {
+        const rows = (await getGameContent("story", levelId)) as StoryRow[];
+        if (!active) return;
 
-      setQuiz(items);
-      setCurrentIndex(0);
-      setSelectedOption(null);
-      setFeedback({ show: false, correct: false, message: "" });
-      setCompleted(false);
-      setStats({ total: items.length, correct: 0, wrong: 0, times: [] });
-      setKeywordsClicked(0);
-      setUniqueKeywordsClicked([]);
-      setQuestionAttempts({});
-      setQuestionResults({});
-      sessionStartRef.current = Date.now();
-      savedRef.current = false;
-      startRef.current = Date.now();
-      setLoading(false);
+        const safeRows = Array.isArray(rows) ? rows : [];
+        const items = safeRows.flatMap((story) => parseQuizQuestions(story));
+
+        setQuiz(items);
+        setCurrentIndex(0);
+        setSelectedOption(null);
+        setFeedback({ show: false, correct: false, message: "" });
+        setCompleted(false);
+        setStats({ total: items.length, correct: 0, wrong: 0, times: [] });
+        setKeywordsClicked(0);
+        setUniqueKeywordsClicked([]);
+        setQuestionAttempts({});
+        setQuestionResults({});
+        sessionStartRef.current = Date.now();
+        savedRef.current = false;
+        startRef.current = Date.now();
+      } catch (error) {
+        console.error("Failed to load story quiz:", error);
+        if (!active) return;
+        setQuiz([]);
+        setLoadError("We could not load this story level. Please try again.");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     };
 
     void load();
@@ -197,7 +223,7 @@ const StoryQuizLevel = () => {
     setSelectedWord(word);
     setKeywordsClicked((prev) => prev + 1);
     setUniqueKeywordsClicked((prev) =>
-      prev.includes(word) ? prev : [...prev, word]
+      prev.includes(word) ? prev : [...prev, word],
     );
     await fetchExplanation(word, language);
   };
@@ -300,7 +326,7 @@ const StoryQuizLevel = () => {
             .map((w) => w.trim())
             .filter((w) => w.length > 1);
           return sum + new Set(words).size;
-        }, 0)
+        }, 0),
       );
       const storyScore = scoreStorySession({
         pagesRead,
@@ -357,6 +383,22 @@ const StoryQuizLevel = () => {
       <GameLayout title="Story Quiz">
         <View style={styles.centerWrap}>
           <Text style={styles.centerText}>Loading story quiz...</Text>
+        </View>
+      </GameLayout>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <GameLayout title="Story Quiz">
+        <View style={styles.centerWrap}>
+          <Text style={styles.centerText}>{loadError}</Text>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.primaryButtonText}>Back to Levels</Text>
+          </TouchableOpacity>
         </View>
       </GameLayout>
     );
