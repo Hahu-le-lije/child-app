@@ -9,6 +9,7 @@ export const initContentDB = () => {
       game_type TEXT NOT NULL,
       title TEXT,
       version TEXT,
+      checksum TEXT,
       downloaded_at INTEGER NOT NULL,
       local_dir TEXT,
       PRIMARY KEY (child_id, slug)
@@ -197,6 +198,12 @@ export const initContentDB = () => {
 
   try {
     db.execSync(`ALTER TABLE stories ADD COLUMN level_id TEXT`);
+  } catch {
+    /* column already present */
+  }
+
+  try {
+    db.execSync(`ALTER TABLE content_packs ADD COLUMN checksum TEXT`);
   } catch {
     /* column already present */
   }

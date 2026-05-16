@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
@@ -38,31 +39,41 @@ async function getDeviceStorage(): Promise<{ free: number; total: number }> {
 }
 
 const Content = () => {
-  const { packs, progressSlug, downloadedSlugs, loadContent, downloadPack } =
-    useContentStore();
+  const {
+    packs,
+    progressSlug,
+    installedBySlug,
+    status,
+    error,
+    fromCache,
+    loadContent,
+    downloadPack,
+    clearError,
+  } = useContentStore();
   const [storage, setStorage] = useState({ free: 0, total: 0 });
-  const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    await loadContent();
-    const deviceStorage = await getDeviceStorage();
-    setStorage(deviceStorage);
-    setLoading(false);
-  }, [loadContent]);
+  const loadData = useCallback(
+    async (force?: boolean) => {
+      clearError();
+      await loadContent({ force });
+      const deviceStorage = await getDeviceStorage();
+      setStorage(deviceStorage);
+    },
+    [loadContent, clearError],
+  );
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  const getItemStatus = (pack: ContentPackListItem) => {
-    if (progressSlug === pack.slug) {
-      return { status: "downloading" as const };
-    }
-    if (downloadedSlugs[pack.slug]) {
-      return { status: "downloaded" as const };
-    }
-    return { status: "available" as const };
+  type ItemStatus = "downloading" | "downloaded" | "update" | "available";
+
+  const getItemStatus = (pack: ContentPackListItem): ItemStatus => {
+    if (progressSlug === pack.slug) return "downloading";
+    const installed = installedBySlug[pack.slug];
+    if (!installed) return "available";
+    if (installed.updateAvailable) return "update";
+    return "downloaded";
   };
 
   const checkInstalledPacks = async () => {
@@ -72,24 +83,19 @@ const Content = () => {
         Alert.alert("Not signed in", "Log in to see saved packs.");
         return;
       }
-      const rows = getInstalledPacks(String(user.id)) as Array<{
-        slug: string;
-        title: string | null;
-       game_type: string;
-        downloaded_at: number;
-      }>;
+      const rows = getInstalledPacks(String(user.id));
       const lines =
         rows.length === 0
           ? "No packs installed yet."
           : rows
               .map(
                 (r) =>
-                  `• ${r.title ?? r.slug} (${r.game_type}) — ${new Date(r.downloaded_at).toLocaleString()}`,
+                  `• ${r.title ?? r.slug} (${r.game_type}) v${r.version ?? "?"} — ${new Date(r.downloaded_at).toLocaleString()}`,
               )
               .join("\n");
       Alert.alert("Installed packs", lines);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       Alert.alert("Error", "Could not read local pack records.");
     }
   };
@@ -113,22 +119,33 @@ const Content = () => {
         "Downloaded folders",
         names.length ? names.join(", ") : "Empty",
       );
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       Alert.alert("Error", "Could not list folders.");
     }
   };
 
-  const handleDownload = async (item: ContentPackListItem) => {
+  const handleDownload = async (
+    item: ContentPackListItem,
+    force = false,
+  ) => {
     try {
-      await downloadPack(item);
+      const result = await downloadPack(item, { force });
+      if (result.status === "skipped") {
+        Alert.alert("Up to date", `"${item.title}" is already on this device.`);
+        return;
+      }
+      if (result.status === "updated") {
+        Alert.alert("Updated", `"${item.title}" was updated offline.`);
+        return;
+      }
       Alert.alert("Saved", `"${item.title}" is ready offline.`);
-    } catch (error: unknown) {
+    } catch (err: unknown) {
       const msg =
-        error instanceof ContentApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
+        err instanceof ContentApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
             : "Download failed.";
       Alert.alert("Download problem", msg);
     }
@@ -139,6 +156,7 @@ const Content = () => {
     const gameLabel = item.game_type ?? item.gameType ?? item.type ?? "game";
     const thumb = item.thumbnail_url ?? item.thumbnail;
     const sizeLabel = item.size_mb ?? item.sizeMb;
+    const installed = installedBySlug[item.slug];
 
     return (
       <View style={styles.card}>
@@ -161,21 +179,33 @@ const Content = () => {
               <Text style={styles.size}>{sizeLabel} MB</Text>
             ) : null}
             <Text style={styles.gameType}>{gameLabel}</Text>
+            {installed?.version ? (
+              <Text style={styles.versionTag}>v{installed.version}</Text>
+            ) : null}
           </View>
-          {itemStatus.status === "downloading" && (
+          {itemStatus === "downloading" && (
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: "60%" }]} />
             </View>
           )}
         </View>
-        {itemStatus.status === "downloaded" && (
+        {itemStatus === "downloaded" && (
           <MaterialCommunityIcons
             name="check-circle"
             size={26}
             color="#20BF6B"
           />
         )}
-        {itemStatus.status === "available" && (
+        {itemStatus === "update" && (
+          <TouchableOpacity onPress={() => void handleDownload(item, true)}>
+            <MaterialCommunityIcons
+              name="update"
+              size={26}
+              color="#F7B731"
+            />
+          </TouchableOpacity>
+        )}
+        {itemStatus === "available" && (
           <TouchableOpacity onPress={() => void handleDownload(item)}>
             <Ionicons name="cloud-download-outline" size={26} color="#5D5FEF" />
           </TouchableOpacity>
@@ -186,10 +216,11 @@ const Content = () => {
 
   const formatGB = (bytes: number) => (bytes / 1024 / 1024 / 1024).toFixed(1);
 
-  if (loading) {
+  if (status === "loading" && packs.length === 0) {
     return (
       <SafeAreaComponent style={styles.container}>
         <View style={styles.centerContent}>
+          <ActivityIndicator color="#5D5FEF" />
           <Text style={styles.loadingText}>Loading content...</Text>
         </View>
       </SafeAreaComponent>
@@ -201,9 +232,19 @@ const Content = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Offline Content</Text>
         <Text style={styles.subtitle}>
-          One pack per game — download to play without internet
+          Download packs to play without internet
+          {fromCache ? " (cached catalog)" : ""}
         </Text>
       </View>
+
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={() => void loadData(true)}>
+            <Text style={styles.retryInline}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <View style={styles.debugContainer}>
         <TouchableOpacity
@@ -239,7 +280,10 @@ const Content = () => {
             (JSON list). Override the path prefix with EXPO_PUBLIC_CONTENT_ROOT
             if your server differs.
           </Text>
-          <TouchableOpacity onPress={loadData} style={styles.retryButton}>
+          <TouchableOpacity
+            onPress={() => void loadData(true)}
+            style={styles.retryButton}
+          >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -250,6 +294,8 @@ const Content = () => {
           renderItem={renderItem}
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshing={status === "loading"}
+          onRefresh={() => void loadData(true)}
         />
       )}
     </SafeAreaComponent>
@@ -274,6 +320,26 @@ const styles = StyleSheet.create({
   subtitle: {
     color: "#aaa",
     marginTop: 4,
+  },
+  errorBanner: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#4A2F2F",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  errorText: {
+    color: "#FFB4B4",
+    flex: 1,
+    fontSize: 13,
+  },
+  retryInline: {
+    color: "#5D5FEF",
+    fontFamily: "Poppins-SemiBold",
   },
   debugContainer: {
     flexDirection: "row",
@@ -337,6 +403,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
     gap: 8,
+    flexWrap: "wrap",
   },
   size: {
     color: "#5D5FEF",
@@ -355,6 +422,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     textTransform: "capitalize",
   },
+  versionTag: {
+    color: "#aaa",
+    fontSize: 11,
+  },
   progressBar: {
     height: 6,
     backgroundColor: "#3F3F5F",
@@ -371,6 +442,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: 12,
   },
   loadingText: {
     color: "#fff",

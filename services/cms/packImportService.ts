@@ -27,7 +27,10 @@ import {
     saveContentPackRecord,
 } from "@/services/cms/dbContentService";
 import type { GameTypeKey } from "@/services/cms/gameContentService";
-import { downloadPackAsset, packRootDir } from "@/services/db/fileService";
+import {
+  downloadPackAsset,
+  packRootDir,
+} from "@/services/cms/asset/packAssetManager";
 
 function randomKey(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -682,6 +685,7 @@ export async function importPackPayload(
   catalogTitle?: string,
   /** Laravel `latest_published_version` when download JSON has no version. */
   catalogVersion?: string | null,
+  manifestChecksum?: string | null,
 ): Promise<void> {
   const root =
     payload && typeof payload === "object"
@@ -739,6 +743,7 @@ export async function importPackPayload(
       game,
       catalogTitle ?? packSlug,
       versionRecorded,
+      manifestChecksum ?? null,
       packRootDir(childId, packSlug),
     );
     db.execSync("COMMIT");

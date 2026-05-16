@@ -1,4 +1,11 @@
 import { getApiBaseUrl } from "@/services/api/auth.api";
+import type {
+  ContentPack,
+  ContentPackListItem,
+  ContentPackManifest,
+} from "@/types/content";
+
+export type { ContentPack, ContentPackListItem, ContentPackManifest };
 
 export class ContentApiError extends Error {
   constructor(
@@ -15,32 +22,6 @@ const CONTENT_ROOT = (process.env.EXPO_PUBLIC_CONTENT_ROOT?.trim() || "/api/cont
   /\/+$/,
   ""
 );
-
-/**
- * Mirrors Laravel `$fillable` on the content pack model (plus aliases for older clients).
- */
-export type ContentPackListItem = {
-  slug: string;
-  title: string;
-  description?: string;
-  /** Laravel column `game_type` — drives which importer runs after download. */
-  game_type?: string;
-  /** Laravel column `thumbnail_url`. */
-  thumbnail_url?: string;
-  /** Laravel column `size_mb`. */
-  size_mb?: number;
-  /** Laravel column `latest_published_version` (shown as `version`). */
-  latest_published_version?: string | number | null;
-  /** Laravel column `is_active` — inactive packs are omitted from the list. */
-  is_active?: boolean;
-  /** Normalized booleans/strings from API — prefer using `thumbnail_url`. */
-  gameType?: string;
-  type?: string;
-  thumbnail?: string;
-  thumbnailUrl?: string;
-  version?: string;
-  sizeMb?: number;
-};
 
 function contentAbsoluteUrl(restPath: string): string {
   const base = getApiBaseUrl();
@@ -127,8 +108,28 @@ function packRowIsInactive(item: Record<string, unknown>): boolean {
   return false;
 }
 
+function unwrapRecord(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const inner = o.data ?? o.manifest ?? o.pack;
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    return inner as Record<string, unknown>;
+  }
+  return o;
+}
+
+function pickString(item: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = item[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
 /** GET `/api/content/packs` — returns normalized catalog rows. */
-export async function fetchContentPackList(accessToken?: string | null): Promise<ContentPackListItem[]> {
+export async function fetchContentPackList(
+  accessToken?: string | null,
+): Promise<ContentPackListItem[]> {
   let res: Response;
   try {
     res = await fetch(contentAbsoluteUrl("/packs"), {
@@ -170,7 +171,16 @@ export async function fetchContentPackList(accessToken?: string | null): Promise
     const versionStr =
       latest == null ? undefined : typeof latest === "number" ? String(latest) : String(latest);
 
+    const idRaw = item.id ?? item.content_pack_id;
+    const id =
+      typeof idRaw === "number"
+        ? idRaw
+        : typeof idRaw === "string" && idRaw.trim()
+          ? Number(idRaw)
+          : undefined;
+
     out.push({
+      id: Number.isFinite(id) ? id : undefined,
       slug,
       title,
       description: typeof item.description === "string" ? item.description : undefined,
@@ -197,10 +207,64 @@ export async function fetchContentPackList(accessToken?: string | null): Promise
   return out;
 }
 
+/** Normalize manifest JSON from GET /api/content/packs/{slug}/manifest */
+export function normalizePackManifest(
+  raw: unknown,
+  fallbackSlug: string,
+): ContentPackManifest {
+  const item = unwrapRecord(raw) ?? {};
+  const slug = pickSlug(item) ?? fallbackSlug.trim();
+  const version =
+    pickString(item, "version", "latest_published_version") ??
+    (item.content_pack_version &&
+    typeof item.content_pack_version === "object"
+      ? pickString(item.content_pack_version as Record<string, unknown>, "version")
+      : undefined);
+
+  if (!version) {
+    throw new ContentApiError(`Manifest for "${slug}" is missing version`);
+  }
+
+  const checksum =
+    pickString(item, "checksum", "hash", "sha256") ??
+    (item.content_pack_version &&
+    typeof item.content_pack_version === "object"
+      ? pickString(item.content_pack_version as Record<string, unknown>, "checksum")
+      : undefined);
+
+  const sizeRaw = item.size_bytes ?? item.sizeBytes;
+  const size_bytes =
+    typeof sizeRaw === "number"
+      ? sizeRaw
+      : typeof sizeRaw === "string"
+        ? Number(sizeRaw)
+        : undefined;
+
+  const packIdRaw = item.content_pack_id ?? item.id;
+  const content_pack_id =
+    typeof packIdRaw === "number"
+      ? packIdRaw
+      : typeof packIdRaw === "string"
+        ? Number(packIdRaw)
+        : undefined;
+
+  return {
+    slug,
+    content_pack_id: Number.isFinite(content_pack_id) ? content_pack_id : undefined,
+    version,
+    checksum,
+    size_bytes: Number.isFinite(size_bytes) ? size_bytes : undefined,
+    min_app_version: pickString(item, "min_app_version", "minAppVersion"),
+    published_at: pickString(item, "published_at", "publishedAt"),
+    game_type: pickString(item, "game_type", "gameType", "type"),
+    title: pickString(item, "title", "name"),
+  };
+}
+
 /** GET `/api/content/packs/{slug}/manifest` */
 export async function fetchPackManifest(
   slug: string,
-  accessToken?: string | null
+  accessToken?: string | null,
 ): Promise<unknown> {
   const enc = encodeURIComponent(slug);
   let res: Response;

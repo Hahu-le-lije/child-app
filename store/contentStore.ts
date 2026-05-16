@@ -1,61 +1,106 @@
-import {
-    ContentApiError,
-    fetchContentPackList,
-    fetchPackDownload,
-    type ContentPackListItem,
-} from "@/services/api/content.api";
-import { getInstalledPacks } from "@/services/cms/contentQueryService";
-import { getAccessToken, getUser } from "@/services/db/authStorage";
-import {
-    importPackPayload,
-    normalizePackGameType,
-} from "@/services/cms/packImportService";
 import { create } from "zustand";
+import { ContentApiError } from "@/services/api/content.api";
+import {
+  catalogErrorMessage,
+  loadContentCatalog,
+} from "@/services/cms/catalog/contentCatalogService";
+import {
+  installContentPack,
+  PackInstallError,
+} from "@/services/cms/import/contentPackPipeline";
+import {
+  catalogUpdateAvailable,
+  getInstalledPacks,
+} from "@/services/cms/repositories/contentPackRepository";
+import { getAccessToken, getUser } from "@/services/db/authStorage";
+import type {
+  ContentPack,
+  InstalledPackSummary,
+  PackInstallResult,
+} from "@/types/content";
+
+export type ContentCatalogStatus = "idle" | "loading" | "success" | "error";
 
 interface ContentState {
-  packs: ContentPackListItem[];
-  downloadedSlugs: Record<string, boolean>;
+  packs: ContentPack[];
+  installedBySlug: Record<string, InstalledPackSummary>;
+  status: ContentCatalogStatus;
+  error: string | null;
+  fromCache: boolean;
   progressSlug: string | null;
-  loadContent: () => Promise<void>;
-  downloadPack: (pack: ContentPackListItem) => Promise<void>;
+  loadContent: (options?: { force?: boolean }) => Promise<void>;
+  downloadPack: (
+    pack: ContentPack,
+    options?: { force?: boolean },
+  ) => Promise<PackInstallResult>;
+  clearError: () => void;
 }
 
-export const useContentStore = create<ContentState>((set) => ({
+function buildInstalledMap(
+  childId: string | null,
+  catalog: ContentPack[],
+): Record<string, InstalledPackSummary> {
+  if (!childId) return {};
+  const installed = getInstalledPacks(childId);
+  const map: Record<string, InstalledPackSummary> = {};
+  for (const row of installed) {
+    const catalogRow = catalog.find((p) => p.slug === row.slug);
+    const catalogVersion =
+      catalogRow?.version ??
+      (catalogRow?.latest_published_version != null
+        ? String(catalogRow.latest_published_version)
+        : undefined);
+    map[row.slug] = {
+      slug: row.slug,
+      version: row.version,
+      checksum: row.checksum,
+      game_type: String(row.game_type),
+      title: row.title,
+      downloaded_at: row.downloaded_at,
+      updateAvailable: catalogUpdateAvailable(row, catalogVersion),
+    };
+  }
+  return map;
+}
+
+export const useContentStore = create<ContentState>((set, get) => ({
   packs: [],
-  downloadedSlugs: {},
+  installedBySlug: {},
+  status: "idle",
+  error: null,
+  fromCache: false,
   progressSlug: null,
 
-  loadContent: async () => {
+  clearError: () => set({ error: null }),
+
+  loadContent: async (options) => {
+    set({ status: "loading", error: null });
     try {
       const token = await getAccessToken();
       const user = await getUser();
       const childId = user?.id != null ? String(user.id) : null;
 
-      const catalog = await fetchContentPackList(token);
+      const { packs, fromCache } = await loadContentCatalog(token, {
+        forceRefresh: options?.force === true,
+      });
 
-      let installedMap: Record<string, boolean> = {};
-      if (childId) {
-        const installed = getInstalledPacks(childId) as Array<{
-          slug?: string;
-        }>;
-        installedMap = installed.reduce<Record<string, boolean>>((acc, row) => {
-          if (row.slug) acc[row.slug] = true;
-          return acc;
-        }, {});
-      }
-
-      set({ packs: catalog, downloadedSlugs: installedMap });
+      set({
+        packs,
+        installedBySlug: buildInstalledMap(childId, packs),
+        status: "success",
+        fromCache,
+        error: null,
+      });
     } catch (error) {
       console.error("Failed to load content catalog:", error);
-      const message =
-        error instanceof ContentApiError
-          ? error.message
-          : "Could not reach the content server.";
-      console.warn(message);
+      set({
+        status: "error",
+        error: catalogErrorMessage(error),
+      });
     }
   },
 
-  downloadPack: async (pack) => {
+  downloadPack: async (pack, options) => {
     const user = await getUser();
     if (!user?.id) {
       throw new Error("Log in first to save packs for your profile.");
@@ -63,40 +108,35 @@ export const useContentStore = create<ContentState>((set) => ({
     const childId = String(user.id);
     const token = await getAccessToken();
 
-    const game = normalizePackGameType(
-      pack.gameType ?? pack.game_type ?? pack.type ?? null,
-    );
-    if (!game) {
-      throw new Error(
-        `Pack "${pack.title}" has no recognized game_type. Check the catalog row from the server.`,
-      );
-    }
-
-    set({ progressSlug: pack.slug });
+    set({ progressSlug: pack.slug, error: null });
 
     try {
-      const payload = await fetchPackDownload(pack.slug, token);
-      const catalogVersion =
-        pack.version ??
-        (pack.latest_published_version != null
-          ? String(pack.latest_published_version)
-          : undefined);
-
-      await importPackPayload(
+      const result = await installContentPack(
         childId,
-        pack.slug,
-        game,
-        payload,
-        pack.title,
-        catalogVersion,
+        pack,
+        token,
+        { force: options?.force },
       );
 
-      set((state) => ({
-        downloadedSlugs: { ...state.downloadedSlugs, [pack.slug]: true },
-        progressSlug: null,
-      }));
+      if (result.status !== "skipped") {
+        const catalog = get().packs;
+        set({
+          installedBySlug: buildInstalledMap(childId, catalog),
+        });
+      }
+
+      set({ progressSlug: null });
+      return result;
     } catch (error) {
       set({ progressSlug: null });
+      const message =
+        error instanceof PackInstallError ||
+        error instanceof ContentApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Download failed.";
+      set({ error: message });
       throw error;
     }
   },

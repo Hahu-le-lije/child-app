@@ -191,9 +191,4 @@ export const getSentencesForLevel = (childId: string, levelId: string) => {
   );
 };
 
-export const getInstalledPacks = (childId: string) => {
-  return db.getAllSync(
-    `SELECT * FROM content_packs WHERE child_id = ? ORDER BY downloaded_at DESC`,
-    [childId]
-  );
-};
+export { getInstalledPacks, getInstalledPack } from "@/services/cms/repositories/contentPackRepository";

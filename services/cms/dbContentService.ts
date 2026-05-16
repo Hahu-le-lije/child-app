@@ -342,18 +342,4 @@ export const insertSentence = (
   );
 };
 
-export const saveContentPackRecord = (
-  child_id: string,
-  slug: string,
-  game_type: string,
-  title: string,
-  version: string | null,
-  local_dir: string
-) => {
-  db.runSync(
-    `INSERT OR REPLACE INTO content_packs(
-      child_id, slug, game_type, title, version, downloaded_at, local_dir
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [child_id, slug, game_type, title, version, Date.now(), local_dir]
-  );
-};
+export { saveContentPackRecord } from "@/services/cms/repositories/contentPackRepository";
