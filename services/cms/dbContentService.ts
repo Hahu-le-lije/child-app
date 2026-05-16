@@ -245,13 +245,26 @@ export const insertWordHint = (child_id: string, word_id: string, hint: string) 
 
 export const insertFillLevel = (
   child_id: string,
-  level: { id: string; full: string; blank: string; audio: string }
+  level: {
+    id: string;
+    full: string;
+    blank: string;
+    audio: string;
+    correct_answer?: string;
+  },
 ) => {
   db.runSync(
     `INSERT OR REPLACE INTO fill_levels 
-     (id, child_id, full_paragraph, blank_paragraph, audio_path)
-     VALUES (?, ?, ?, ?, ?)`,
-    [level.id, child_id, level.full, level.blank, level.audio]
+     (id, child_id, full_paragraph, blank_paragraph, correct_answer, audio_path)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      level.id,
+      child_id,
+      level.full,
+      level.blank,
+      level.correct_answer ?? null,
+      level.audio,
+    ],
   );
 };
 

@@ -11,7 +11,7 @@ export const upsertGameSession=(gameSession:GameSession)=>{
         score=excluded.score,
         time_spent=excluded.time_spent,
         metrics=excluded.metrics,
-        updated_at=excluded.updated_at
+        updated_at=excluded.updated_at,
         synced=0
     `,[
         gameSession.id,

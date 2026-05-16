@@ -31,6 +31,12 @@ import {
   downloadPackAsset,
   packRootDir,
 } from "@/services/cms/asset/packAssetManager";
+import {
+  asStringArray,
+  iterateLevelQuestions,
+  pickRemoteUrl,
+  resolveCorrectChoice,
+} from "@/services/cms/payload/payloadHelpers";
 
 function randomKey(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -82,6 +88,7 @@ export function normalizePackGameType(raw?: string | null): GameTypeKey | null {
     wordbuilder: "word_builder",
     voice: "voice",
     voice_fidel_to_word: "voice",
+    voice_to_word: "voice",
   };
   return map[k] ?? null;
 }
@@ -91,15 +98,75 @@ async function importStories(
   packSlug: string,
   contents: Record<string, unknown>,
 ) {
+  const quizBlock =
+    (contents.story_quiz as Record<string, unknown> | undefined) ??
+    (contents.storyquiz as Record<string, unknown> | undefined);
+
+  const storiesArray = quizBlock?.stories;
+  if (Array.isArray(storiesArray) && storiesArray.length > 0) {
+    for (let i = 0; i < storiesArray.length; i++) {
+      const story = storiesArray[i] as Record<string, unknown>;
+      const sid = packScopedId(packSlug, `story_${i}`);
+      const pages = story.pages as Array<Record<string, unknown>> | undefined;
+      const pageList = Array.isArray(pages) ? pages : [];
+
+      const thumbUrl = pageList[0]
+        ? pickRemoteUrl(pageList[0], "image", "imagelink", "image_link")
+        : pickRemoteUrl(story, "thumbnail", "thumbnaillink", "thumbnail_link");
+
+      const thumbnailPath = thumbUrl
+        ? await downloadPackAsset(thumbUrl, childId, packSlug, "images/story")
+        : "";
+
+      insertStory(childId, {
+        id: sid,
+        title: String(story.title ?? `Story ${i + 1}`),
+        pagecount: pageList.length,
+        thumbnail_path: thumbnailPath,
+      });
+
+      for (let p = 0; p < pageList.length; p++) {
+        const page = pageList[p];
+        const imgUrl = pickRemoteUrl(page, "image", "imagelink", "image_link");
+        const image_path = imgUrl
+          ? await downloadPackAsset(imgUrl, childId, packSlug, "images/story")
+          : "";
+        insertStoryPage(childId, {
+          story_id: sid,
+          page_number: p + 1,
+          story_text: String(page.text ?? page.storytext ?? page.story_text ?? ""),
+          image_path,
+        });
+      }
+
+      const questions = story.questions;
+      if (!Array.isArray(questions)) continue;
+      for (const rawQ of questions) {
+        if (!rawQ || typeof rawQ !== "object") continue;
+        const q = rawQ as Record<string, unknown>;
+        const choices = asStringArray(q.choices);
+        const qid = insertStoryQuestion(childId, {
+          story_id: sid,
+          question_text: String(q.question ?? q.text ?? ""),
+          correct_answer: resolveCorrectChoice(q, choices),
+        });
+        for (const choice of choices) {
+          insertStoryChoice(childId, Number(qid), choice);
+        }
+      }
+    }
+    return;
+  }
+
   const storyRoot =
     (contents.story as Record<string, unknown> | undefined) ?? {};
   const stories = storyRoot.stories as Record<string, unknown> | undefined;
   const storyMap =
-    stories && typeof stories === "object"
+    stories && typeof stories === "object" && !Array.isArray(stories)
       ? stories
       : (contents.stories as Record<string, unknown> | undefined);
 
-  if (!storyMap || typeof storyMap !== "object") return;
+  if (!storyMap || typeof storyMap !== "object" || Array.isArray(storyMap)) return;
 
   for (const storyId of Object.keys(storyMap)) {
     const story = storyMap[storyId] as Record<string, unknown>;
@@ -181,8 +248,38 @@ async function importPicture(
     insertPictureLevel(childId, lid);
     const level = levels[levelId] as Record<string, unknown>;
 
-    for (const qKey of Object.keys(level)) {
-      const q = level[qKey] as Record<string, unknown>;
+    for (const { key: qKey, question: q } of iterateLevelQuestions(level)) {
+      const choices = asStringArray(q.choices);
+      const promptUrl = pickRemoteUrl(q, "image", "imagelink", "image_link");
+
+      if (promptUrl && choices.length > 0) {
+        const correctId = resolveCorrectChoice(q, choices);
+        const promptPath = await downloadPackAsset(
+          promptUrl,
+          childId,
+          packSlug,
+          "images/picture",
+        );
+        const rowId = insertPictureQuestion(childId, {
+          level_id: lid,
+          text: String(q.question ?? q.questiontext ?? "Choose the word"),
+          correct_image_id: correctId,
+        });
+        insertPictureImage(childId, {
+          id: `${qKey}_prompt`,
+          question_id: Number(rowId),
+          image_path: promptPath,
+        });
+        for (const choice of choices) {
+          insertPictureImage(childId, {
+            id: choice,
+            question_id: Number(rowId),
+            image_path: "",
+          });
+        }
+        continue;
+      }
+
       if (!q.images || typeof q.questiontext !== "string") continue;
 
       const correctId =
@@ -230,21 +327,19 @@ async function importTracing(
     insertFidelLevel(childId, lid);
     const level = levels[levelId] as Record<string, unknown>;
 
-    for (const qKey of Object.keys(level)) {
-      const q = level[qKey] as Record<string, unknown>;
-      const outline =
-        typeof q["lettertoraceimagelink(outline version)"] === "string"
-          ? (q["lettertoraceimagelink(outline version)"] as string)
-          : typeof q.lettertoraceimagelink === "string"
-            ? q.lettertoraceimagelink
-            : "";
-
-      const pronunciation =
-        typeof q.pronoucevoicelink === "string"
-          ? q.pronoucevoicelink
-          : typeof q.audio_url === "string"
-            ? q.audio_url
-            : "";
+    for (const { question: q } of iterateLevelQuestions(level)) {
+      const outline = pickRemoteUrl(
+        q,
+        "image",
+        "lettertoraceimagelink",
+        "lettertoraceimagelink(outline version)",
+      );
+      const pronunciation = pickRemoteUrl(
+        q,
+        "voice",
+        "pronoucevoicelink",
+        "audio_url",
+      );
 
       const imagePath = outline
         ? await downloadPackAsset(outline, childId, packSlug, "images/fidel")
@@ -261,7 +356,7 @@ async function importTracing(
 
       insertFidelQuestion(childId, {
         level_id: lid,
-        letter: String(q.lettertotrace ?? ""),
+        letter: String(q.word ?? q.lettertotrace ?? q.letter ?? ""),
         image_path: imagePath || null,
         audio_path: audioPath || null,
       });
@@ -284,6 +379,28 @@ async function importWordBuilder(
     const lid = packScopedId(packSlug, levelId);
     insertWordBuilderLevel(childId, lid);
     const level = levels[levelId] as Record<string, unknown>;
+
+    const questions = iterateLevelQuestions(level);
+    if (questions.length > 0) {
+      const letterSet = new Set<string>();
+      for (const { key: qKey, question: q } of questions) {
+        for (const letter of asStringArray(q.letters)) {
+          letterSet.add(letter);
+        }
+        const target = String(q.target_word ?? q.targetWord ?? "").trim();
+        if (!target) continue;
+        const wid = packScopedId(packSlug, `${levelId}__${qKey}`);
+        insertWord(childId, {
+          id: wid,
+          level_id: lid,
+          word_text: target,
+        });
+      }
+      for (const letter of letterSet) {
+        insertLetter(childId, lid, letter);
+      }
+      continue;
+    }
 
     const letters = Array.isArray(level.letters)
       ? (level.letters as unknown[]).map((x) => String(x))
@@ -341,14 +458,41 @@ async function importFill(
   if (!levels) return;
 
   for (const levelId of Object.keys(levels)) {
-    const lid = packScopedId(packSlug, levelId);
     const level = levels[levelId] as Record<string, unknown>;
-    const audioUrl =
-      typeof level["voice reading the full paragraph link"] === "string"
-        ? (level["voice reading the full paragraph link"] as string)
-        : typeof level.voicereadinglink === "string"
-          ? level.voicereadinglink
+    const questions = iterateLevelQuestions(level);
+
+    if (questions.length > 0) {
+      for (const { key: qKey, question: q } of questions) {
+        const lid = packScopedId(packSlug, `${levelId}__${qKey}`);
+        const sentence = String(q.sentence ?? q.text ?? "");
+        const choices = asStringArray(q.choices);
+        const correct = resolveCorrectChoice(q, choices);
+        const audioUrl = pickRemoteUrl(q, "voice", "audio", "audioUrl");
+        const audioPath = audioUrl
+          ? await downloadPackAsset(audioUrl, childId, packSlug, "audio/fill")
           : "";
+
+        insertFillLevel(childId, {
+          id: lid,
+          full: sentence,
+          blank: sentence,
+          correct_answer: correct,
+          audio: audioPath,
+        });
+        for (const choice of choices) {
+          insertFillChoice(childId, lid, choice);
+        }
+      }
+      continue;
+    }
+
+    const lid = packScopedId(packSlug, levelId);
+    const audioUrl = pickRemoteUrl(
+      level,
+      "voice reading the full paragraph link",
+      "voicereadinglink",
+      "voice",
+    );
 
     const audioPath = audioUrl
       ? await downloadPackAsset(audioUrl, childId, packSlug, "audio/fill")
@@ -363,9 +507,7 @@ async function importFill(
       audio: audioPath,
     });
 
-    const choices = Array.isArray(level.choices)
-      ? (level.choices as unknown[]).map((x) => String(x))
-      : [];
+    const choices = asStringArray(level.choices);
     for (const choice of choices) {
       insertFillChoice(childId, lid, choice);
     }
@@ -385,23 +527,54 @@ async function importPronunciation(
   if (!levels) return;
 
   for (const levelId of Object.keys(levels)) {
-    const lid = packScopedId(packSlug, levelId);
     const level = levels[levelId] as Record<string, unknown>;
-    const audioUrl =
-      typeof level["correct voice pronouncation link "] === "string"
-        ? (level["correct voice pronouncation link "] as string)
-        : typeof level["correct voice pronouncation link"] === "string"
-          ? (level["correct voice pronouncation link"] as string)
-          : typeof level.audio_url === "string"
-            ? level.audio_url
-            : "";
+    const questions = iterateLevelQuestions(level);
 
-    const imageUrl =
-      typeof level["image of the word link"] === "string"
-        ? (level["image of the word link"] as string)
-        : typeof level.imageofthewordlink === "string"
-          ? level.imageofthewordlink
-          : "";
+    if (questions.length > 0) {
+      for (const { key: qKey, question: q } of questions) {
+        const pid = packScopedId(packSlug, `${levelId}__${qKey}`);
+        const audioUrl = pickRemoteUrl(
+          q,
+          "voice",
+          "audio",
+          "audio_url",
+          "correct voice pronouncation link",
+        );
+        const imageUrl = pickRemoteUrl(q, "image", "image of the word link");
+
+        insertPronunciation(childId, {
+          id: pid,
+          word: String(q.word ?? ""),
+          audio: audioUrl
+            ? await downloadPackAsset(
+                audioUrl,
+                childId,
+                packSlug,
+                "audio/pronunciation",
+              )
+            : "",
+          image: imageUrl
+            ? await downloadPackAsset(
+                imageUrl,
+                childId,
+                packSlug,
+                "images/pronunciation",
+              )
+            : "",
+        });
+      }
+      continue;
+    }
+
+    const lid = packScopedId(packSlug, levelId);
+    const audioUrl = pickRemoteUrl(
+      level,
+      "voice",
+      "correct voice pronouncation link ",
+      "correct voice pronouncation link",
+      "audio_url",
+    );
+    const imageUrl = pickRemoteUrl(level, "image", "image of the word link");
 
     insertPronunciation(childId, {
       id: lid,
@@ -441,14 +614,49 @@ async function importVoice(
   if (!levels) return;
 
   for (const levelId of Object.keys(levels)) {
-    const lid = packScopedId(packSlug, levelId);
     const level = levels[levelId] as Record<string, unknown>;
-    const voiceUrl =
-      typeof level["voiceof the word link"] === "string"
-        ? (level["voiceof the word link"] as string)
-        : typeof level.voiceofthewordlink === "string"
-          ? level.voiceofthewordlink
+    const questions = iterateLevelQuestions(level);
+
+    if (questions.length > 0) {
+      for (const { key: qKey, question: q } of questions) {
+        const qid = packScopedId(packSlug, `${levelId}__${qKey}`);
+        const voiceUrl = pickRemoteUrl(
+          q,
+          "voice",
+          "voiceof the word link",
+          "voiceofthewordlink",
+        );
+        const audioPath = voiceUrl
+          ? await downloadPackAsset(voiceUrl, childId, packSlug, "audio/voice")
           : "";
+        const choices = asStringArray(q.choices);
+        const correct = resolveCorrectChoice(q, choices);
+        const correctId = packScopedId(packSlug, `${levelId}__${qKey}__${correct}`);
+
+        insertVoiceLevel(childId, {
+          id: qid,
+          audio: audioPath,
+          correct_word_id: correctId,
+        });
+
+        for (const choice of choices) {
+          insertVoiceChoice(childId, {
+            id: packScopedId(packSlug, `${levelId}__${qKey}__${choice}`),
+            level_id: qid,
+            word_text: choice,
+          });
+        }
+      }
+      continue;
+    }
+
+    const lid = packScopedId(packSlug, levelId);
+    const voiceUrl = pickRemoteUrl(
+      level,
+      "voice",
+      "voiceof the word link",
+      "voiceofthewordlink",
+    );
 
     const audioPath = voiceUrl
       ? await downloadPackAsset(voiceUrl, childId, packSlug, "audio/voice")

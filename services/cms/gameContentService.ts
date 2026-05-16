@@ -173,8 +173,20 @@ export async function getGameContent(
       return Q.getMatchingWords(childId, levelId);
     case "sentence_building":
       return Q.getSentencesForLevel(childId, levelId);
-    case "tracing":
-      return Q.getFidelQuestions(childId, levelId);
+    case "tracing": {
+      const rows = Q.getFidelQuestions(childId, levelId) as Array<{
+        id?: number;
+        letter: string;
+        outline_image_path: string | null;
+        audio_path: string | null;
+      }>;
+      return rows.map((q, i) => ({
+        id: q.id != null ? String(q.id) : `q${i + 1}`,
+        lettertotrace: q.letter,
+        outlineImageUri: q.outline_image_path ?? "",
+        pronoucevoicelink: q.audio_path ?? "",
+      }));
+    }
     case "pronunciation": {
       const rows = Q.getPronunciationLevels(childId) as Array<{
         id: string;
@@ -182,31 +194,74 @@ export async function getGameContent(
         audio_path: string;
         image_path: string;
       }>;
-      return rows.filter((r) => r.id === levelId);
+      return rows
+        .filter((r) => r.id === levelId || r.id.startsWith(`${levelId}__`))
+        .map((r) => ({
+          id: r.id,
+          word: r.word,
+          audioUrl: r.audio_path,
+          imageUrl: r.image_path,
+        }));
     }
-    case "picture":
-      return Q.getPictureQuestions(childId, levelId);
+    case "picture": {
+      const questions = Q.getPictureQuestions(childId, levelId) as Array<{
+        id: number;
+        question_text: string;
+        correct_image_id: string;
+        images: Array<{ id: string; image_path: string }>;
+      }>;
+      return questions.map((q, i) => {
+        const prompt = q.images.find((img) => img.id.endsWith("_prompt"));
+        const choices = q.images.filter((img) => !img.id.endsWith("_prompt"));
+        const textChoices = choices.filter((c) => !c.image_path);
+        if (textChoices.length > 0) {
+          return {
+            id: String(q.id),
+            questiontext: q.question_text,
+            promptImage: prompt?.image_path ?? "",
+            choices: textChoices.map((c) => c.id),
+            correctChoice: q.correct_image_id,
+          };
+        }
+        return {
+          id: String(q.id),
+          questiontext: q.question_text,
+          images: q.images.map((img) => ({
+            id: img.id,
+            imagelink: img.image_path,
+          })),
+          correctImageId: q.correct_image_id,
+        };
+      });
+    }
     case "fill": {
       const rows = Q.getFillLevels(childId) as Array<{
         id: string;
         full_paragraph: string;
         blank_paragraph: string;
+        correct_answer: string | null;
         audio_path: string;
       }>;
-      const row = rows.find((r) => r.id === levelId);
-      if (!row) return [];
-      const choices = (
-        Q.getFillChoices(childId, levelId) as Array<{ choice: string }>
-      ).map((c) => c.choice);
-      return [
-        {
+      const matched = rows.filter(
+        (r) => r.id === levelId || r.id.startsWith(`${levelId}__`),
+      );
+      return matched.map((row) => {
+        const choices = (
+          Q.getFillChoices(childId, row.id) as Array<{ choice: string }>
+        ).map((c) => c.choice);
+        const answer = row.correct_answer ?? choices[0] ?? "";
+        return {
           levelId: row.id,
+          sentenceTemplate: row.blank_paragraph,
+          answer,
+          options: choices,
+          audioUrl: row.audio_path || undefined,
           full: row.full_paragraph,
           blank: row.blank_paragraph,
           audio: row.audio_path,
           choices,
-        },
-      ];
+        };
+      });
     }
     case "word_builder":
       return [Q.getWordBuilderData(childId, levelId)];
@@ -216,17 +271,24 @@ export async function getGameContent(
         audio_path: string;
         correct_word_id: string;
       }>;
-      const row = rows.find((r) => r.id === levelId);
-      if (!row) return [];
-      const choices = Q.getVoiceChoices(childId, levelId);
-      return [
-        {
+      const matched = rows.filter(
+        (r) => r.id === levelId || r.id.startsWith(`${levelId}__`),
+      );
+      return matched.map((row) => {
+        const choices = Q.getVoiceChoices(childId, row.id) as Array<{
+          id: string;
+          word_text: string;
+        }>;
+        const correct = choices.find((c) => c.id === row.correct_word_id);
+        return {
           id: row.id,
           audio_url: row.audio_path,
           correct_word_id: row.correct_word_id,
+          correct_word: correct?.word_text ?? "",
           word_choices: choices,
-        },
-      ];
+          choices: choices.map((c) => c.word_text),
+        };
+      });
     }
     default:
       return [];

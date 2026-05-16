@@ -127,6 +127,7 @@ export const initContentDB = () => {
       child_id TEXT,
       full_paragraph TEXT,
       blank_paragraph TEXT,
+      correct_answer TEXT,
       audio_path TEXT,
       PRIMARY KEY (id, child_id)
     );
@@ -204,6 +205,12 @@ export const initContentDB = () => {
 
   try {
     db.execSync(`ALTER TABLE content_packs ADD COLUMN checksum TEXT`);
+  } catch {
+    /* column already present */
+  }
+
+  try {
+    db.execSync(`ALTER TABLE fill_levels ADD COLUMN correct_answer TEXT`);
   } catch {
     /* column already present */
   }

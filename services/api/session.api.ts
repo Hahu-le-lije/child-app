@@ -1,33 +1,54 @@
+import { getApiBaseUrl } from "@/services/api/auth.api";
+import { getAccessToken } from "@/services/db/authStorage";
 import { GameSession } from "@/types/session.types";
 
-const BASE_URL = "https://your-api.com"; 
+const SESSION_PATH =
+  process.env.EXPO_PUBLIC_SESSIONS_PATH?.trim() || "/sessions/batch";
 
 export const sendSessions = async (sessions: GameSession[]) => {
-  try {
-    const res = await fetch(`${BASE_URL}/sessions/batch`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sessions }),
-    });
+  const base = getApiBaseUrl();
+  if (!base) {
+    throw new Error("EXPO_PUBLIC_API_URL is not set");
+  }
 
-    if (!res.ok) {
-      throw new Error("Failed to send sessions");
-    }
+  const token = await getAccessToken();
+  const path = SESSION_PATH.startsWith("/") ? SESSION_PATH : `/${SESSION_PATH}`;
 
-  } catch (err) {
-    console.log("Sync up Failed", err);
-    throw err;
+  const res = await fetch(`${base}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ sessions }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to send sessions (${res.status})`);
   }
 };
 
 export const fetchSessions = async (since: string) => {
-  const res = await fetch(`${BASE_URL}/sessions?since=${since}`);
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch sessions");
+  const base = getApiBaseUrl();
+  if (!base) {
+    throw new Error("EXPO_PUBLIC_API_URL is not set");
   }
 
-  return res.json(); 
+  const token = await getAccessToken();
+  const res = await fetch(
+    `${base}/sessions?since=${encodeURIComponent(since)}`,
+    {
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch sessions (${res.status})`);
+  }
+
+  return res.json();
 };

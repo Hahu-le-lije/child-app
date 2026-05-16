@@ -32,9 +32,11 @@ export function validatePackPayload(game: GameTypeKey, payload: unknown): void {
 
   switch (game) {
     case "story": {
+      const quiz = contents.story_quiz as Record<string, unknown> | undefined;
+      if (Array.isArray(quiz?.stories) && quiz.stories.length > 0) break;
       const storyRoot = (contents.story as Record<string, unknown> | undefined) ?? {};
-      const stories =
-        storyRoot.stories ?? contents.stories;
+      const stories = storyRoot.stories ?? contents.stories;
+      if (Array.isArray(stories) && stories.length > 0) break;
       if (!hasObjectKeys(stories)) {
         throw new PackPayloadError("Story pack is missing stories content");
       }
@@ -84,6 +86,9 @@ export function validatePackPayload(game: GameTypeKey, payload: unknown): void {
         contents["fill in the blank"] ??
         contents.fill_in_the_blank ??
         contents.fill;
+      if (hasObjectKeys((block as Record<string, unknown> | undefined)?.levels)) {
+        break;
+      }
       if (!hasObjectKeys(block) && !hasObjectKeys(contents.levels)) {
         throw new PackPayloadError("Fill pack is missing level content");
       }
@@ -94,13 +99,22 @@ export function validatePackPayload(game: GameTypeKey, payload: unknown): void {
         contents.pronunciation ??
         contents.speakup ??
         contents["speak up"];
+      if (hasObjectKeys((block as Record<string, unknown> | undefined)?.levels)) {
+        break;
+      }
       if (!hasObjectKeys(block) && !hasObjectKeys(contents.levels)) {
         throw new PackPayloadError("Pronunciation pack is missing content");
       }
       break;
     }
     case "voice": {
-      const block = contents.voice ?? contents["voice fidel to word"];
+      const block =
+        contents.voice_to_word ??
+        contents.voice ??
+        contents["voice fidel to word"];
+      if (hasObjectKeys((block as Record<string, unknown> | undefined)?.levels)) {
+        break;
+      }
       if (!hasObjectKeys(block) && !hasObjectKeys(contents.levels)) {
         throw new PackPayloadError("Voice pack is missing content");
       }

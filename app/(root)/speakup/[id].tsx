@@ -1,46 +1,93 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
 import { COLORS,  FONTS,  } from '@/const';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Audio } from 'expo-av';
 import { useSpeechScoring } from '@/services/gaming/useSpeechScoring';
 import WordDetailSheet from '@/components/WordDetailSheet';
 import { useWordDetails } from '@/services/gaming/useWordDetails';
 import { useLanguageStore } from '@/store/languageStore';
+import { getGameContent } from '@/services/cms/gameContentService';
+
+type PronunciationRow = {
+  word: string;
+  audioUrl: string;
+  imageUrl: string;
+};
+
 const Speakup = () => {
-  const router=useRouter()
+  const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const levelId = String(id ?? "");
   const [selectedWord, setSelectedWord] = React.useState<string | null>(null);
+  const [currentGame, setCurrentGame] = useState<PronunciationRow | null>(null);
+  const [loading, setLoading] = useState(true);
   
   const { recordForThreeSecondsAndScore, isAnalyzing, lastScore } = useSpeechScoring();
-  const { fetchExplanation, explanation, loading, error, clearExplanation } = useWordDetails();
+  const { fetchExplanation, explanation, loading: detailsLoading, error, clearExplanation } = useWordDetails();
   const language = useLanguageStore((state) => state.language);
 
-  const pronunciationData = {
-    levels: {
-      level1: {
-        word: "ድመት",
-        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        imageUrl: "https://picsum.photos/id/237/600/400"
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const rows = (await getGameContent("pronunciation", levelId)) as PronunciationRow[];
+        if (!active) return;
+        setCurrentGame(rows[0] ?? null);
+      } catch (e) {
+        console.error("speakup load failed", e);
+        if (active) setCurrentGame(null);
+      } finally {
+        if (active) setLoading(false);
       }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [levelId]);
+
+  const playPronunciation = async () => {
+    if (!currentGame?.audioUrl) return;
+    try {
+      const { sound } = await Audio.Sound.createAsync({ uri: currentGame.audioUrl });
+      await sound.playAsync();
+    } catch {
+      console.warn("Could not play pronunciation audio");
     }
   };
 
-  const currentGame = pronunciationData.levels["level1"];
-
-  const playPronunciation = () => {
-    
-    // Keeping this local (no audioService dependency). If you want, we can wire expo-av here.
-    console.log('Playing:', currentGame.audioUrl);
-  };
-
   const handlePress = async () => {
+    if (!currentGame?.word) return;
     await recordForThreeSecondsAndScore(currentGame.word);
   };
 
   const handleWordTap = async () => {
+    if (!currentGame?.word) return;
     setSelectedWord(currentGame.word);
     await fetchExplanation(currentGame.word, language);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centered]}>
+        <ActivityIndicator color={COLORS.primary} size="large" />
+        <Text style={styles.subheader}>Loading word…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!currentGame) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centered]}>
+        <Text style={styles.subheader}>Download a pronunciation pack first.</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={{ color: COLORS.primary }}>Go back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -138,6 +185,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  centered: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    gap: 16,
   },
   header: {
     flexDirection: 'row',
