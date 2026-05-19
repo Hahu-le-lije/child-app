@@ -12,8 +12,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "expo-router";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
-import { useFocusEffect } from "@react-navigation/native";
+import {
+  DrawerActions,
+  useFocusEffect,
+  useNavigation,
+} from "@react-navigation/native";
 import Constants from "expo-constants";
 import { COLORS, SPACING, RADIUS, FONTS } from "@/const";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
@@ -42,6 +45,10 @@ const Profile = () => {
 
   const navigation = useNavigation();
   const playClickSound = useClickSound();
+  const avatarUri =
+    typeof user?.avatar === "string" && user.avatar.trim()
+      ? `data:image/png;base64,${user.avatar.trim()}`
+      : null;
 
   const openDrawer = async () => {
     await playClickSound();
@@ -88,8 +95,8 @@ const Profile = () => {
             />
             <Image
               source={
-                user?.avatar && !imageError
-                  ? { uri: `data:image/png;base64,${user.avatar}` }
+                avatarUri && !imageError
+                  ? { uri: avatarUri }
                   : require("@/assets/images/F2I.png")
               }
               style={styles.mainAvatar}

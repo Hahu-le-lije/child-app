@@ -2,7 +2,6 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "child_access_token";
-const REFRESH_KEY = "child_refresh_token";
 const USER_KEY = "child_profile";
 const EXPIRY_KEY = "child_token_expiry";
 
@@ -15,7 +14,6 @@ function ttlSeconds(expiresIn: number | undefined): number {
 
 export const saveAuthData = async (
   accessToken: string,
-  refreshToken: string,
   user: unknown,
   expiresInSeconds?: number
 ) => {
@@ -24,7 +22,6 @@ export const saveAuthData = async (
     const expiryTime = Date.now() + ttl * 1000;
 
     await setItem(TOKEN_KEY, accessToken);
-    await setItem(REFRESH_KEY, refreshToken);
     if (user != null) {
       await setItem(USER_KEY, JSON.stringify(user));
     }
@@ -33,17 +30,20 @@ export const saveAuthData = async (
     console.error("error in saving auth data:", error);
   }
 };
+
+export const saveUser = async (user: unknown) => {
+  try {
+    if (user != null) {
+      await setItem(USER_KEY, JSON.stringify(user));
+    }
+  } catch (error) {
+    console.error("error in saving user data:", error);
+  }
+};
+
 export const getAccessToken = async () :Promise<string | null>=> {
     try{
   return await getItem(TOKEN_KEY);
-}catch{
-    return null
-}
-};
-
-export const getRefreshToken = async (): Promise<string | null> => {
-    try{
-  return await getItem(REFRESH_KEY);
 }catch{
     return null
 }
@@ -70,7 +70,6 @@ export const isTokenValid = async (): Promise<boolean> => {
 export const clearAuth = async () => {
   try {
     await deleteItem(TOKEN_KEY);
-    await deleteItem(REFRESH_KEY);
     await deleteItem(USER_KEY);
     await deleteItem(EXPIRY_KEY);
   } catch (error) {

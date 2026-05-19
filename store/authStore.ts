@@ -1,17 +1,17 @@
 import {
   AuthApiError,
+  fetchChildMe,
   logoutChild,
-  refreshSessionToken,
   type AuthUser,
   type LoginResponse,
 } from "@/services/api/auth.api";
 import {
   clearAuth,
   getAccessToken,
-  getRefreshToken,
   getUser,
   isTokenValid,
   saveAuthData,
+  saveUser,
 } from "@/services/db/authStorage";
 import NetInfo from "@react-native-community/netinfo";
 import { create } from "zustand";
@@ -24,7 +24,6 @@ interface AuthState {
   checkAuthOnStart: () => Promise<void>;
   login: (data: LoginResponse) => Promise<void>;
   logout: () => Promise<void>;
-  refreshToken: () => Promise<void>;
 }
 
 function isOnline(net: Awaited<ReturnType<typeof NetInfo.fetch>>): boolean {
@@ -33,7 +32,7 @@ function isOnline(net: Awaited<ReturnType<typeof NetInfo.fetch>>): boolean {
   return true;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: true,
 
@@ -55,11 +54,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ user: storedUser });
 
-      if (valid) return;
-
       const net = await NetInfo.fetch();
-      if (isOnline(net)) {
-        await get().refreshToken();
+      if (!isOnline(net)) return;
+
+      if (!valid) {
+        await clearAuth();
+        set({ user: null });
+        return;
+      }
+
+      try {
+        const freshUser = await fetchChildMe(token);
+        await saveUser(freshUser);
+        set({ user: freshUser });
+      } catch (e) {
+        if (e instanceof AuthApiError && e.kind === "network") return;
+        if (e instanceof AuthApiError && (e.status === 401 || e.status === 403)) {
+          await clearAuth();
+          set({ user: null });
+        }
       }
     } catch (error) {
       console.log("auth start error: ", error);
@@ -71,7 +84,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (data: LoginResponse) => {
     await saveAuthData(
       data.accessToken,
-      data.refreshToken,
       data.user,
       data.expiresIn,
     );
@@ -87,45 +99,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     await clearAuth();
     set({ user: null });
-  },
-
-  refreshToken: async () => {
-    const refreshTokenValue = await getRefreshToken();
-    if (!refreshTokenValue) return;
-
-    const storedUser = await getUser();
-    try {
-      const data = await refreshSessionToken(refreshTokenValue);
-      const nextRefresh = data.refreshToken?.trim()
-        ? data.refreshToken
-        : refreshTokenValue;
-      const nextUser = data.user ?? storedUser;
-      if (!nextUser) {
-        await clearAuth();
-        set({ user: null });
-        return;
-      }
-      await saveAuthData(
-        data.accessToken,
-        nextRefresh,
-        nextUser,
-        data.expiresIn,
-      );
-      set({ user: nextUser });
-    } catch (e) {
-      if (e instanceof AuthApiError) {
-        if (e.kind === "network") {
-          return;
-        }
-        if (e.status === 401 || e.status === 403 || e.kind === "auth") {
-          await clearAuth();
-          set({ user: null });
-          return;
-        }
-        return;
-      }
-      await clearAuth();
-      set({ user: null });
-    }
   },
 }));

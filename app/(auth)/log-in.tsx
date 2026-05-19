@@ -63,14 +63,14 @@ const Login = () => {
               </View>
               <Text style={styles.title}>Secret Entry</Text>
               <Text style={styles.subtitle}>
-                Tell us your name and secret code!
+                Enter your username and PIN!
               </Text>
             </View>
 
             <View style={styles.formCard}>
               <InputField
-                label="Your Name"
-                placeholder="Type your name here..."
+                label="Username"
+                placeholder="Enter your username..."
                 autoCapitalize="none"
                 value={username}
                 onChangeText={setUsername}
@@ -78,8 +78,9 @@ const Login = () => {
               />
 
               <InputField
-                label="Secret Code"
-                placeholder="Enter code..."
+                label="PIN"
+                placeholder="Enter your PIN..."
+                keyboardType="number-pad"
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
