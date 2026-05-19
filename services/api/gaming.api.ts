@@ -3,7 +3,7 @@ import { getInfoAsync } from "expo-file-system/legacy";
 function getGamingBaseUrl(): string {
   const raw =
     process.env.EXPO_PUBLIC_GAMING_API_URL?.trim() ||
-    process.env.EXPO_PUBLIC_API_URL?.trim() ||
+    
     "";
   return raw.replace(/\/+$/, "");
 }

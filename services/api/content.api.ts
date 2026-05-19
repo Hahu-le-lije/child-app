@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from "@/services/api/auth.api";
 import type {
   ContentPack,
   ContentPackListItem,
@@ -17,16 +16,16 @@ export class ContentApiError extends Error {
   }
 }
 
-/** Base path segment, default `/api/content` → packs at `/api/content/packs`. */
-const CONTENT_ROOT = (process.env.EXPO_PUBLIC_CONTENT_ROOT?.trim() || "/api/content").replace(
+
+const CONTENT_ROOT = ( "/api/content").replace(
   /\/+$/,
   ""
 );
 
 function contentAbsoluteUrl(restPath: string): string {
-  const base = getApiBaseUrl();
+  const base = process.env.EXPO_PUBLIC_CONTENT_API?.trim()
   if (!base) {
-    throw new ContentApiError("EXPO_PUBLIC_API_URL is not set");
+    throw new ContentApiError("EXPO_PUBLIC_CONTENT_API is not set");
   }
   const path = restPath.startsWith("/") ? restPath : `/${restPath}`;
   return `${base}${CONTENT_ROOT}${path}`;
@@ -100,7 +99,7 @@ function pickLatestVersion(
   return undefined;
 }
 
-/** Treat missing `is_active` as visible (assume API only returns actives when column omitted). */
+
 function packRowIsInactive(item: Record<string, unknown>): boolean {
   if (!("is_active" in item)) return false;
   const v = item.is_active;
