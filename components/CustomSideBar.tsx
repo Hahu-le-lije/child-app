@@ -140,11 +140,11 @@ const CustomSidebar = ({ navigation }: DrawerContentComponentProps) => {
 
       <View style={styles.profileHeader}>
         <View style={styles.avatarCircle}>
-          <Image source={images.Logo} style={styles.avatar} />
+          <Image source={user?.avatar ? { uri: user.avatar } : images.Logo} style={styles.avatar} />
         </View>
 
         <Text style={styles.profileName}>
-          {user?.username || t(language, "sidebar.littleHero")}
+          {user?.first_name || t(language, "sidebar.littleHero")} {user?.last_name}
         </Text>
       </View>
 

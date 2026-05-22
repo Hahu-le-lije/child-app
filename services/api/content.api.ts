@@ -138,6 +138,7 @@ export async function fetchContentPackList(
     throw new ContentApiError("Network error loading content packs");
   }
   const raw = await readJson(res);
+  console.log("Raw content pack list response:", raw);
   if (!res.ok) {
     throw new ContentApiError(
       `Failed to load packs (${res.status})`,

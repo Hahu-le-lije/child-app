@@ -49,7 +49,7 @@ const Home = () => {
           <View style={styles.headerTitles}>
             <Text style={styles.greeting}>
               {t(language, "home.greetingPrefix")},{" "}
-              {user?.username || t(language, "home.heroFallback")}
+              {user?.first_name || t(language, "home.heroFallback")}
             </Text>
             <Text style={styles.subGreeting}>
               {t(language, "home.subGreeting")}

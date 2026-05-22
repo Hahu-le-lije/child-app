@@ -126,27 +126,9 @@ function authErrorStatus(res: Response): "auth" | "unknown" {
   return res.status === 401 || res.status === 403 ? "auth" : "unknown";
 }
 
-async function devMockLogin(username: string, password: string): Promise<LoginResponse> {
-  await new Promise((r) => setTimeout(r, 400));
-  if (username.trim() === "izzat" && password === "123") {
-    return {
-      accessToken: "dev_access_token",
-      expiresIn: 7200,
-      user: { id: "1", username: "izzat", first_name: "Izzat", role: "child" },
-    };
-  }
-  throw new AuthApiError("Invalid username or password", 422, "auth");
-}
+
 
 export async function loginChild(username: string, password: string): Promise<LoginResponse> {
-  if (!getApiBaseUrl()) {
-    if (__DEV__) return devMockLogin(username, password);
-    throw new AuthApiError(
-      "Set EXPO_PUBLIC_API_URL in your environment (e.g. .env)",
-      undefined,
-      "unknown",
-    );
-  }
 
   let res: Response;
   try {
@@ -160,6 +142,7 @@ export async function loginChild(username: string, password: string): Promise<Lo
   }
 
   const raw = await readJson(res);
+  console.log("Login response:", { status: res.status, body: raw });
   if (!res.ok) {
     const flat = flattenEnvelope(raw);
     const msg =
@@ -173,11 +156,6 @@ export async function loginChild(username: string, password: string): Promise<Lo
 export async function logoutChild(accessToken: string | null | undefined): Promise<void> {
   const token = accessToken?.trim();
   if (!token) return;
-
-  if (!getApiBaseUrl()) {
-    if (__DEV__) return;
-    throw new AuthApiError("EXPO_PUBLIC_API_URL is not set", undefined, "unknown");
-  }
 
   try {
     const res = await fetch(apiUrl(PATH_CHILD_LOGOUT), {

@@ -95,9 +95,9 @@ const Profile = () => {
             />
             <Image
               source={
-                avatarUri && !imageError
-                  ? { uri: avatarUri }
-                  : require("@/assets/images/F2I.png")
+                user?.avatar && !imageError
+                  ? { uri: avatarUri! }
+                  : require("@/assets/images/hahu_logo.png")
               }
               style={styles.mainAvatar}
               onError={() => setImageError(true)}
@@ -105,8 +105,9 @@ const Profile = () => {
           </View>
 
           <Text style={styles.username}>
-            {user?.username || t(language, "profile.superLearner")}
+         {user?.first_name || t(language, "profile.superLearner")} {user?.last_name}
           </Text>
+
         </View>
 
         <View style={styles.statsContainer}>
