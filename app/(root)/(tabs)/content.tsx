@@ -276,9 +276,7 @@ const Content = () => {
           />
           <Text style={styles.emptyText}>No content packs from the server</Text>
           <Text style={styles.emptyHint}>
-            Set EXPO_PUBLIC_API_URL so the app can reach GET /api/content/packs
-            (JSON list). Override the path prefix with EXPO_PUBLIC_CONTENT_ROOT
-            if your server differs.
+            Log in first. Content uses your session token to sign CMS requests.
           </Text>
           <TouchableOpacity
             onPress={() => void loadData(true)}

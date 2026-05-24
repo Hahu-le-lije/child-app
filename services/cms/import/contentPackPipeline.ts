@@ -38,7 +38,6 @@ export type InstallPackOptions = {
 export async function installContentPack(
   childId: string,
   pack: ContentPack,
-  accessToken?: string | null,
   options?: InstallPackOptions,
 ): Promise<PackInstallResult> {
   const slug = pack.slug.trim();
@@ -54,7 +53,7 @@ export async function installContentPack(
 
   let manifest;
   try {
-    const rawManifest = await fetchPackManifest(slug, accessToken);
+    const rawManifest = await fetchPackManifest(slug);
     manifest = normalizePackManifest(rawManifest, slug);
   } catch (error) {
     if (error instanceof ContentApiError) throw error;
@@ -81,7 +80,7 @@ export async function installContentPack(
 
   let payload: unknown;
   try {
-    payload = await fetchPackDownload(slug, accessToken);
+    payload = await fetchPackDownload(slug);
   } catch (error) {
     if (error instanceof ContentApiError) throw error;
     throw new PackInstallError("Failed to download pack", "network");

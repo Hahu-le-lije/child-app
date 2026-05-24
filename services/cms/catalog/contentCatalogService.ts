@@ -38,10 +38,9 @@ export type CatalogLoadResult = {
   fromCache: boolean;
 };
 
-export async function loadContentCatalog(
-  accessToken?: string | null,
-  options?: { forceRefresh?: boolean },
-): Promise<CatalogLoadResult> {
+export async function loadContentCatalog(options?: {
+  forceRefresh?: boolean;
+}): Promise<CatalogLoadResult> {
   const force = options?.forceRefresh === true;
   const cached = !force ? await readCache() : null;
 
@@ -50,7 +49,7 @@ export async function loadContentCatalog(
   }
 
   try {
-    const packs = await fetchContentPackList(accessToken);
+    const packs = await fetchContentPackList();
     await writeCache(packs);
     return { packs, fromCache: false };
   } catch (error) {
@@ -72,6 +71,14 @@ export async function clearCatalogCache(): Promise<void> {
 
 export function catalogErrorMessage(error: unknown): string {
   if (error instanceof ContentApiError) return error.message;
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    if (error.message.includes("Log in to load content")) {
+      return "Log in to download content packs.";
+    }
+    if (error.message.includes("child service")) {
+      return error.message;
+    }
+    return error.message;
+  }
   return "Could not reach the content server.";
 }

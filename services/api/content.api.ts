@@ -3,302 +3,288 @@ import type {
   ContentPackListItem,
   ContentPackManifest,
 } from "@/types/content";
+import {
+  buildContentRequest,
+  clearCmsServiceTokenCache,
+  type ContentRequestContext,
+} from "@/services/api/cmsContentAuth";
 
 export type { ContentPack, ContentPackListItem, ContentPackManifest };
 
 export class ContentApiError extends Error {
   constructor(
     message: string,
-    public readonly status?: number
+    public readonly status?: number,
   ) {
     super(message);
     this.name = "ContentApiError";
   }
 }
 
+async function contentFetch(
+  restPath: string,
+  networkError: string,
+): Promise<{ res: Response; raw: unknown; ctx: ContentRequestContext }> {
+  let ctx: ContentRequestContext;
 
-const CONTENT_ROOT = ( "/api/content").replace(
-  /\/+$/,
-  ""
-);
-
-function contentAbsoluteUrl(restPath: string): string {
-  const base = process.env.EXPO_PUBLIC_CONTENT_API?.trim()
-  if (!base) {
-    throw new ContentApiError("EXPO_PUBLIC_CONTENT_API is not set");
+  try {
+    ctx = await buildContentRequest(restPath);
+  } catch (error) {
+    throw new ContentApiError(
+      error instanceof Error ? error.message : "Content request setup failed",
+    );
   }
-  const path = restPath.startsWith("/") ? restPath : `/${restPath}`;
-  return `${base}${CONTENT_ROOT}${path}`;
-}
 
-function authHeaders(token?: string | null): HeadersInit {
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
-  const t = token?.trim();
-  if (t) headers.Authorization = `Bearer ${t}`;
-  return headers;
+  let res: Response;
+
+  try {
+    res = await fetch(ctx.url, {
+      method: ctx.method,
+      headers: ctx.headers,
+    });
+  } catch {
+    throw new ContentApiError(networkError);
+  }
+
+  const raw = await readJson(res);
+
+  return { res, raw, ctx };
 }
 
 async function readJson(res: Response): Promise<unknown> {
   const text = await res.text();
+
   if (!text) return null;
+
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch {
     throw new ContentApiError("Invalid JSON from content API", res.status);
   }
 }
 
+function apiErrorMessage(raw: unknown, fallback: string): string {
+  if (raw && typeof raw === "object") {
+    const record = raw as Record<string, unknown>;
+    const msg = record.message ?? record.error;
+
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+  }
+
+  return fallback;
+}
+
+function assertOk(
+  res: Response,
+  raw: unknown,
+  fallback: string,
+): void {
+  if (res.ok) return;
+
+  if (res.status === 401) {
+    clearCmsServiceTokenCache();
+
+    throw new ContentApiError(
+      apiErrorMessage(raw, "Content authorization failed. Log in and try again."),
+      401,
+    );
+  }
+
+  if (res.status === 404) {
+    throw new ContentApiError(
+      apiErrorMessage(raw, "Content pack not found or not published."),
+      404,
+    );
+  }
+
+  throw new ContentApiError(
+    apiErrorMessage(raw, `${fallback} (${res.status})`),
+    res.status,
+  );
+}
+
 function flattenListPayload(raw: unknown): unknown[] {
   if (Array.isArray(raw)) return raw;
+
   if (raw && typeof raw === "object") {
     const o = raw as Record<string, unknown>;
-    const packs = o.packs ?? o.contentPacks ?? o.data ?? o.results;
+    const packs = o.contentPacks ?? o.packs ?? o.data ?? o.results;
+
     if (Array.isArray(packs)) return packs;
-    if (packs && typeof packs === "object" && Array.isArray((packs as { items?: unknown }).items)) {
+
+    if (
+      packs &&
+      typeof packs === "object" &&
+      Array.isArray((packs as { items?: unknown }).items)
+    ) {
       return (packs as { items: unknown[] }).items;
     }
   }
+
   return [];
 }
 
 function pickSlug(item: Record<string, unknown>): string | undefined {
-  const s =
-    item.slug ??
-    item.id ??
-    item.packSlug ??
-    item.pack_slug;
-  return typeof s === "string" && s.trim() ? s.trim() : undefined;
+  const value = item.slug ?? item.id ?? item.packSlug ?? item.pack_slug;
+
+  return typeof value === "string" && value.trim()
+    ? value.trim()
+    : undefined;
 }
 
-function pickSizeMb(item: Record<string, unknown>): number | undefined {
-  const v = item.size_mb ?? item.sizeMb;
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() !== "") {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;
+function pickNumber(
+  item: Record<string, unknown>,
+  ...keys: string[]
+): number | undefined {
+  for (const key of keys) {
+    const value = item[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
   }
+
   return undefined;
 }
 
-function pickThumbnailUrl(item: Record<string, unknown>): string | undefined {
-  const u =
-    item.thumbnail_url ??
-    item.thumbnailUrl ??
-    item.thumbnail;
-  return typeof u === "string" && u.trim() ? u.trim() : undefined;
-}
+function pickString(
+  item: Record<string, unknown>,
+  ...keys: string[]
+): string | undefined {
+  for (const key of keys) {
+    const value = item[key];
 
-function pickLatestVersion(
-  item: Record<string, unknown>
-): string | number | null | undefined {
-  const v = item.latest_published_version ?? item.version;
-  if (v == null) return undefined;
-  if (typeof v === "string" || typeof v === "number") return v;
+    if (typeof value === "string" && value.trim()) return value.trim();
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
   return undefined;
-}
-
-
-function packRowIsInactive(item: Record<string, unknown>): boolean {
-  if (!("is_active" in item)) return false;
-  const v = item.is_active;
-  if (v === false || v === 0 || v === "0" || v === "false") return true;
-  return false;
 }
 
 function unwrapRecord(raw: unknown): Record<string, unknown> | null {
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+
   const o = raw as Record<string, unknown>;
   const inner = o.data ?? o.manifest ?? o.pack;
+
   if (inner && typeof inner === "object" && !Array.isArray(inner)) {
     return inner as Record<string, unknown>;
   }
+
   return o;
 }
 
-function pickString(item: Record<string, unknown>, ...keys: string[]): string | undefined {
-  for (const key of keys) {
-    const v = item[key];
-    if (typeof v === "string" && v.trim()) return v.trim();
-  }
-  return undefined;
-}
+export async function fetchContentPackList(): Promise<ContentPackListItem[]> {
+  const { res, raw } = await contentFetch(
+    "/packs",
+    "Network error loading content packs",
+  );
 
-/** GET `/api/content/packs` — returns normalized catalog rows. */
-export async function fetchContentPackList(
-  accessToken?: string | null,
-): Promise<ContentPackListItem[]> {
-  let res: Response;
-  try {
-    res = await fetch(contentAbsoluteUrl("/packs"), {
-      headers: authHeaders(accessToken),
-    });
-  } catch {
-    throw new ContentApiError("Network error loading content packs");
-  }
-  const raw = await readJson(res);
-  console.log("Raw content pack list response:", raw);
-  if (!res.ok) {
-    throw new ContentApiError(
-      `Failed to load packs (${res.status})`,
-      res.status
-    );
-  }
-  const list = flattenListPayload(raw);
-  const out: ContentPackListItem[] = [];
-  for (const row of list) {
-    if (!row || typeof row !== "object") continue;
+  assertOk(res, raw, "Failed to load packs");
+
+  const packs: ContentPackListItem[] = [];
+
+  for (const row of flattenListPayload(raw)) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+
     const item = row as Record<string, unknown>;
     const slug = pickSlug(item);
+
     if (!slug) continue;
-    if (packRowIsInactive(item)) continue;
 
-    const title =
-      (typeof item.title === "string" && item.title) ||
-      (typeof item.name === "string" && item.name) ||
-      slug;
+    const title = pickString(item, "title", "name") ?? slug;
+    const gameType = pickString(item, "gameType", "game_type", "type");
+    const thumbnail = pickString(
+      item,
+      "thumbnail",
+      "thumbnailUrl",
+      "thumbnail_url",
+    );
+    const sizeMb = pickNumber(item, "size", "sizeMb", "size_mb");
+    const version = pickString(item, "version", "latest_published_version");
+    const id = pickNumber(item, "id", "content_pack_id");
 
-    const game_type_raw =
-      (typeof item.game_type === "string" && item.game_type) ||
-      (typeof item.gameType === "string" && item.gameType) ||
-      (typeof item.type === "string" && item.type) ||
-      undefined;
-
-    const thumb = pickThumbnailUrl(item);
-    const sizeMbVal = pickSizeMb(item);
-    const latest = pickLatestVersion(item);
-    const versionStr =
-      latest == null ? undefined : typeof latest === "number" ? String(latest) : String(latest);
-
-    const idRaw = item.id ?? item.content_pack_id;
-    const id =
-      typeof idRaw === "number"
-        ? idRaw
-        : typeof idRaw === "string" && idRaw.trim()
-          ? Number(idRaw)
-          : undefined;
-
-    out.push({
-      id: Number.isFinite(id) ? id : undefined,
+    packs.push({
+      id,
       slug,
       title,
-      description: typeof item.description === "string" ? item.description : undefined,
-      game_type: game_type_raw,
-      gameType: game_type_raw,
-      type: typeof item.type === "string" ? item.type : undefined,
-      thumbnail_url: thumb,
-      thumbnail: thumb,
-      thumbnailUrl: thumb,
-      size_mb: sizeMbVal,
-      sizeMb: sizeMbVal,
-      latest_published_version: latest ?? undefined,
-      version: versionStr,
+      description: pickString(item, "description"),
+      game_type: gameType,
+      gameType,
+      type: pickString(item, "type"),
+      thumbnail_url: thumbnail,
+      thumbnail,
+      thumbnailUrl: thumbnail,
+      size_mb: sizeMb,
+      sizeMb,
+      latest_published_version: version,
+      version,
       is_active:
-        typeof item.is_active === "boolean"
-          ? item.is_active
-          : item.is_active === 1 || item.is_active === "1"
-            ? true
-            : item.is_active === 0 || item.is_active === "0"
-              ? false
-              : undefined,
+        typeof item.is_active === "boolean" ? item.is_active : undefined,
     });
   }
-  return out;
+
+  return packs;
 }
 
-/** Normalize manifest JSON from GET /api/content/packs/{slug}/manifest */
 export function normalizePackManifest(
   raw: unknown,
   fallbackSlug: string,
 ): ContentPackManifest {
   const item = unwrapRecord(raw) ?? {};
   const slug = pickSlug(item) ?? fallbackSlug.trim();
-  const version =
-    pickString(item, "version", "latest_published_version") ??
-    (item.content_pack_version &&
-    typeof item.content_pack_version === "object"
-      ? pickString(item.content_pack_version as Record<string, unknown>, "version")
-      : undefined);
+  const version = pickString(item, "version", "latest_published_version");
 
   if (!version) {
     throw new ContentApiError(`Manifest for "${slug}" is missing version`);
   }
 
-  const checksum =
-    pickString(item, "checksum", "hash", "sha256") ??
-    (item.content_pack_version &&
-    typeof item.content_pack_version === "object"
-      ? pickString(item.content_pack_version as Record<string, unknown>, "checksum")
-      : undefined);
-
-  const sizeRaw = item.size_bytes ?? item.sizeBytes;
-  const size_bytes =
-    typeof sizeRaw === "number"
-      ? sizeRaw
-      : typeof sizeRaw === "string"
-        ? Number(sizeRaw)
-        : undefined;
-
-  const packIdRaw = item.content_pack_id ?? item.id;
-  const content_pack_id =
-    typeof packIdRaw === "number"
-      ? packIdRaw
-      : typeof packIdRaw === "string"
-        ? Number(packIdRaw)
-        : undefined;
+  const sizeBytes = pickNumber(item, "sizeBytes", "size_bytes");
+  const contentPackId = pickNumber(item, "content_pack_id");
 
   return {
     slug,
-    content_pack_id: Number.isFinite(content_pack_id) ? content_pack_id : undefined,
+    content_pack_id: contentPackId,
     version,
-    checksum,
-    size_bytes: Number.isFinite(size_bytes) ? size_bytes : undefined,
-    min_app_version: pickString(item, "min_app_version", "minAppVersion"),
-    published_at: pickString(item, "published_at", "publishedAt"),
-    game_type: pickString(item, "game_type", "gameType", "type"),
-    title: pickString(item, "title", "name"),
+    checksum: pickString(item, "checksum", "hash", "sha256"),
+    size_bytes: sizeBytes,
+    min_app_version: pickString(item, "minAppVersion", "min_app_version"),
+    published_at: pickString(item, "publishedAt", "published_at"),
+    game_type: pickString(item, "gameType", "game_type"),
+    title: pickString(item, "title"),
   };
 }
 
-/** GET `/api/content/packs/{slug}/manifest` */
 export async function fetchPackManifest(
   slug: string,
-  accessToken?: string | null,
-): Promise<unknown> {
+): Promise<ContentPackManifest> {
   const enc = encodeURIComponent(slug);
-  let res: Response;
-  try {
-    res = await fetch(contentAbsoluteUrl(`/packs/${enc}/manifest`), {
-      headers: authHeaders(accessToken),
-    });
-  } catch {
-    throw new ContentApiError("Network error loading manifest");
-  }
-  const raw = await readJson(res);
-  if (!res.ok) {
-    throw new ContentApiError(`Manifest failed (${res.status})`, res.status);
-  }
-  return raw;
+
+  const { res, raw } = await contentFetch(
+    `/packs/${enc}/manifest`,
+    "Network error loading manifest",
+  );
+
+  assertOk(res, raw, "Manifest failed");
+
+  return normalizePackManifest(raw, slug);
 }
 
-/** GET `/api/content/packs/{slug}/download` — expects JSON body describing game content + asset URLs. */
-export async function fetchPackDownload(
-  slug: string,
-  accessToken?: string | null
-): Promise<unknown> {
+export async function fetchPackDownload(slug: string): Promise<unknown> {
   const enc = encodeURIComponent(slug);
-  let res: Response;
-  try {
-    res = await fetch(contentAbsoluteUrl(`/packs/${enc}/download`), {
-      headers: authHeaders(accessToken),
-    });
-  } catch {
-    throw new ContentApiError("Network error downloading pack");
-  }
-  const raw = await readJson(res);
-  if (!res.ok) {
-    throw new ContentApiError(`Download failed (${res.status})`, res.status);
-  }
+
+  const { res, raw } = await contentFetch(
+    `/packs/${enc}/download`,
+    "Network error downloading pack",
+  );
+
+  assertOk(res, raw, "Download failed");
+
   return raw;
 }

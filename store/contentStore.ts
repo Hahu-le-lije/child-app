@@ -12,7 +12,7 @@ import {
   catalogUpdateAvailable,
   getInstalledPacks,
 } from "@/services/cms/repositories/contentPackRepository";
-import { getAccessToken, getUser } from "@/services/db/authStorage";
+import { getUser } from "@/services/db/authStorage";
 import type {
   ContentPack,
   InstalledPackSummary,
@@ -76,11 +76,10 @@ export const useContentStore = create<ContentState>((set, get) => ({
   loadContent: async (options) => {
     set({ status: "loading", error: null });
     try {
-      const token = await getAccessToken();
       const user = await getUser();
       const childId = user?.id != null ? String(user.id) : null;
 
-      const { packs, fromCache } = await loadContentCatalog(token, {
+      const { packs, fromCache } = await loadContentCatalog({
         forceRefresh: options?.force === true,
       });
 
@@ -106,17 +105,12 @@ export const useContentStore = create<ContentState>((set, get) => ({
       throw new Error("Log in first to save packs for your profile.");
     }
     const childId = String(user.id);
-    const token = await getAccessToken();
-
     set({ progressSlug: pack.slug, error: null });
 
     try {
-      const result = await installContentPack(
-        childId,
-        pack,
-        token,
-        { force: options?.force },
-      );
+      const result = await installContentPack(childId, pack, {
+        force: options?.force,
+      });
 
       if (result.status !== "skipped") {
         const catalog = get().packs;
