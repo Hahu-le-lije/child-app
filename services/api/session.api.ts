@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from "@/services/api/auth.api";
 import { getAccessToken } from "@/services/db/authStorage";
 import { GameSession } from "@/types/session.types";
 
