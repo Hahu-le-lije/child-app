@@ -224,8 +224,9 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    width: 50,
-    height: 50,
+    width: 110,
+    height: 110,
+      borderRadius: RADIUS.round,
   },
 
   profileName: {

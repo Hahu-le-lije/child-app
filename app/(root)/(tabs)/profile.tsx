@@ -18,7 +18,7 @@ import {
   useNavigation,
 } from "@react-navigation/native";
 import Constants from "expo-constants";
-import { COLORS, SPACING, RADIUS, FONTS } from "@/const";
+import { COLORS, SPACING, RADIUS, FONTS, images } from "@/const";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
 import { useSoundStore } from "@/store/soundStore";
 import { useClickSound } from "@/hooks/useSound";
@@ -95,9 +95,7 @@ const Profile = () => {
             />
             <Image
               source={
-                user?.avatar && !imageError
-                  ? { uri: avatarUri! }
-                  : require("@/assets/images/hahu_logo.png")
+                user?.avatar ? { uri: user.avatar } : images.Logo
               }
               style={styles.mainAvatar}
               onError={() => setImageError(true)}
