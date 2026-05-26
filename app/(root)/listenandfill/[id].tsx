@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from "react-native";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,10 +14,12 @@ import GameLayout from "@/components/GameLayout";
 import AudioButton from "@/components/AudioButton";
 import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
+import { getGameContent } from "@/services/cms/gameContentService";
 import { scoreFillBlank } from "@/services/gaming/scoring.service";
 import { LISTEN_AND_FILL_CONTENT } from "./index";
 
 type ListenQuestion = {
+  levelId?: string;
   sentenceTemplate: string;
   answer: string;
   options: string[];
@@ -29,6 +31,12 @@ type SessionStats = {
   correct: number;
   wrong: number;
   times: number[];
+};
+
+type ListenLevel = {
+  id: string;
+  title: string;
+  questions: ListenQuestion[];
 };
 
 const { width } = Dimensions.get("window");
@@ -52,7 +60,7 @@ const ListenAndFillGame = () => {
   const { id } = useLocalSearchParams();
   const levelId = String(id);
 
-  const level = useMemo(() => {
+  const fallbackLevel = useMemo(() => {
     const levels = LISTEN_AND_FILL_CONTENT.contents["listen and fill"].levels;
     const selected = levels[levelId] ?? levels.level_1;
     const keys = sortQuestionKeys(Object.keys(selected));
@@ -65,6 +73,7 @@ const ListenAndFillGame = () => {
       questions,
     };
   }, [levelId]);
+  const [level, setLevel] = useState<ListenLevel>(fallbackLevel);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -88,6 +97,46 @@ const ListenAndFillGame = () => {
   const sessionStartRef = useRef(Date.now());
   const savedRef = useRef(false);
   const currentQuestion = level.questions[currentIndex];
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const rows = (await getGameContent("fill", levelId)) as ListenQuestion[];
+        if (!active) return;
+        const questions = rows.filter((row) => row.sentenceTemplate && row.answer);
+        setLevel({
+          id: levelId,
+          title: `Listen and Fill ${levelId.toUpperCase()}`,
+          questions: questions.length > 0 ? questions : fallbackLevel.questions,
+        });
+      } catch (e) {
+        console.log("listen and fill content load failed", e);
+        if (active) setLevel(fallbackLevel);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [fallbackLevel, levelId]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setSelectedWord(null);
+    setFeedback({ show: false, correct: false, message: "" });
+    setCompleted(false);
+    setStats({
+      total: level.questions.length,
+      correct: 0,
+      wrong: 0,
+      times: [],
+    });
+    startRef.current = Date.now();
+    sessionStartRef.current = Date.now();
+    savedRef.current = false;
+    setDragAttempts(0);
+    setReplayCount(0);
+  }, [level]);
 
   const accuracy = stats.total === 0 ? 0 : stats.correct / stats.total;
   const averageTime =
@@ -191,10 +240,9 @@ const ListenAndFillGame = () => {
           correct_fills: stats.correct,
           wrong_attempts: stats.wrong,
           drag_attempts: dragAttempts,
-          replay_count: replayCount,
           time_taken: totalTime,
-          skills: scored.skills,
         },
+        skill_breakdown: scored.skills,
         synced: 0,
         created_at: now,
         updated_at: now,

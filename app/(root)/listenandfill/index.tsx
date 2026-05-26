@@ -1,7 +1,9 @@
 import { StyleSheet, View } from "react-native";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import GameLayout from "@/components/GameLayout";
+import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
 import LevelMap, { LevelMapItem } from "./LevelMap";
 
 type ListenQuestion = {
@@ -108,17 +110,25 @@ export const LISTEN_AND_FILL_CONTENT: ListenAndFillJson = {
 };
 
 const ListenAndFillIndex = () => {
-  const levels = useMemo<LevelCard[]>(() => {
-    const entries = Object.entries(
-      LISTEN_AND_FILL_CONTENT.contents["listen and fill"].levels,
-    );
+  const [levels, setLevels] = useState<LevelCard[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
-    return entries.map(([id], index) => {
-      return {
-        id,
-        levelNumber: index + 1,
-      };
-    });
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const rows = await getLevelsForGame("fill");
+      if (!active) return;
+      setLevels(
+        rows.map((row, index) => ({
+          id: String(row.id),
+          levelNumber: Number(row.level_number) || index + 1,
+        })),
+      );
+      setCompletedIds(getCompletedLevelIds(["fill_blank"]));
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const levelNodes = useMemo<LevelMapItem[]>(
@@ -126,8 +136,9 @@ const ListenAndFillIndex = () => {
       levels.map((level) => ({
         id: level.id,
         levelNumber: level.levelNumber,
+        completed: completedIds.has(level.id),
       })),
-    [levels],
+    [completedIds, levels],
   );
 
   return (
@@ -144,6 +155,7 @@ const ListenAndFillIndex = () => {
               params: { id: item.id },
             })
           }
+          emptyMessage="No listen-and-fill levels available right now."
         />
       </View>
     </GameLayout>

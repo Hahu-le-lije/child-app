@@ -60,7 +60,7 @@ const Speakup = () => {
 
   const handlePress = async () => {
     if (!currentGame?.word) return;
-    await recordForThreeSecondsAndScore(currentGame.word);
+    await recordForThreeSecondsAndScore(currentGame.word, levelId);
   };
 
   const handleWordTap = async () => {
@@ -174,7 +174,7 @@ const Speakup = () => {
         }}
         selectedWord={selectedWord}
         details={explanation}
-        loading={loading}
+        loading={detailsLoading}
         error={error}
       />
     </SafeAreaView>

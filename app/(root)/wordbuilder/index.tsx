@@ -2,11 +2,13 @@ import { StyleSheet, View } from "react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
 import { router } from "expo-router";
 import LevelMap, { LevelMapItem } from "../listenandfill/LevelMap";
 
 const WordBuilder = () => {
   const [levels, setLevels] = useState<any[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -15,6 +17,7 @@ const WordBuilder = () => {
       const rows = await getLevelsForGame("word_builder");
       if (!active) return;
       setLevels(rows);
+      setCompletedIds(getCompletedLevelIds(["word_builder"]));
     })();
 
     return () => {
@@ -27,8 +30,9 @@ const WordBuilder = () => {
       (levels ?? []).map((item: any, index: number) => ({
         id: String(item.id),
         levelNumber: Number(item.level_number) || index + 1,
+        completed: completedIds.has(String(item.id)),
       })),
-    [levels],
+    [completedIds, levels],
   );
 
   return (

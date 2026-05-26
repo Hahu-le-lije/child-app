@@ -1,5 +1,6 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -15,6 +16,7 @@ type MatchLevel = {
 
 const Match = () => {
   const [levels, setLevels] = useState<MatchLevel[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -23,6 +25,7 @@ const Match = () => {
       const rows = await getLevelsForGame("matching");
       if (!active) return;
       setLevels(rows as MatchLevel[]);
+      setCompletedIds(getCompletedLevelIds(["voice_word_match"]));
     })();
 
     return () => {
@@ -35,8 +38,9 @@ const Match = () => {
       levels.map((level, index) => ({
         id: level.id,
         levelNumber: level.level_number ?? index + 1,
+        completed: completedIds.has(level.id),
       })),
-    [levels],
+    [completedIds, levels],
   );
 
   return (

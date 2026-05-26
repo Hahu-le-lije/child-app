@@ -29,7 +29,7 @@ export const useSpeechScoring = () => {
     };
 
     
-    const stopAndScore = async (targetWord: string) => {
+    const stopAndScore = async (targetWord: string, contentId = targetWord) => {
         if (!recording) return;
 
         setRecording(null);
@@ -66,20 +66,17 @@ export const useSpeechScoring = () => {
                       id: sessionId,
                       child_id: String(user.id),
                       game_type: "pronunciation",
-                      content_id: targetWord,
+                      content_id: contentId,
                       score: scored.finalScore,
                       time_spent: durationMs != null ? Math.round(durationMs / 1000) : 0,
                       metrics: {
-                        targetWord,
+                        word: targetWord,
                         attempts: nextAttempts,
                         duration: durationMs != null ? Math.round(durationMs / 1000) : 0,
                         pronunciation_score: Number(result.score ?? 0),
                         clarity_score: Number(result.score ?? 0),
-                        skills: scored.skills,
-                        audio_uri: uri,
-                        duration_ms: durationMs,
-                        raw: result,
                       },
+                      skill_breakdown: scored.skills,
                       synced: 0,
                       created_at: now,
                       updated_at: now,
@@ -100,12 +97,12 @@ export const useSpeechScoring = () => {
     };
 
     /** Convenience: records ~3s and auto-submits. */
-    const recordForThreeSecondsAndScore = async (targetWord: string) => {
+    const recordForThreeSecondsAndScore = async (targetWord: string, contentId = targetWord) => {
       if (isAnalyzing) return;
       await startRecording();
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        void stopAndScore(targetWord);
+        void stopAndScore(targetWord, contentId);
       }, 3000);
     };
 

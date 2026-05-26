@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import Svg, { Line } from 'react-native-svg';
@@ -11,6 +11,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { scoreWordBuilder } from '@/services/gaming/scoring.service';
 import { getUser } from '@/services/db/authStorage';
 import { upsertGameSession } from '@/services/db/gameSession.service';
+import { getGameContent } from '@/services/cms/gameContentService';
 
 const { width } = Dimensions.get('window');
 const WHEEL = width * 0.85;
@@ -28,10 +29,49 @@ const INITIAL_DATA = {
   ]
 };
 
+type WordBuilderWord = {
+  wordid: string;
+  wordtext: string;
+  pronunciation?: string;
+  meaning?: string;
+  sentence?: string;
+};
+
+type WordBuilderHint = {
+  wordid: string;
+  hinttext: string;
+};
+
+type WordBuilderContent = {
+  letters: string[];
+  correctWords: WordBuilderWord[];
+  hints: WordBuilderHint[];
+};
+
+type WordBuilderDbContent = {
+  letters?: string[];
+  words?: {
+    id?: string;
+    wordid?: string;
+    word_text?: string;
+    wordtext?: string;
+    pronunciation?: string;
+    meaning?: string;
+    sentence?: string;
+  }[];
+  hints?: {
+    word_id?: string;
+    wordid?: string;
+    hint_text?: string;
+    hinttext?: string;
+  }[];
+};
+
 const WordBuilder = () => {
   const { id } = useLocalSearchParams();
 
-  const [letters] = useState(INITIAL_DATA.letters);
+  const [content, setContent] = useState<WordBuilderContent>(INITIAL_DATA);
+  const letters = content.letters;
   const [foundWords, setFoundWords] = useState<string[]>([]);
   const [currentPath, setCurrentPath] = useState<number[]>([]);
   const [touchPos, setTouchPos] = useState({ x: 0, y: 0 });
@@ -52,6 +92,65 @@ const WordBuilder = () => {
   const sessionStartRef = useRef(Date.now());
   const savedRef = useRef(false);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const rows = (await getGameContent("word_builder", String(id))) as WordBuilderDbContent[];
+        if (!active) return;
+        const row = rows[0];
+        const lettersFromDb = row?.letters?.map(String).filter(Boolean) ?? [];
+        const correctWords =
+          row?.words
+            ?.map((word) => ({
+              wordid: String(word.id ?? word.wordid ?? ""),
+              wordtext: String(word.word_text ?? word.wordtext ?? ""),
+              pronunciation: word.pronunciation,
+              meaning: word.meaning,
+              sentence: word.sentence,
+            }))
+            .filter((word) => word.wordid && word.wordtext) ?? [];
+        const hints =
+          row?.hints
+            ?.map((hintRow) => ({
+              wordid: String(hintRow.word_id ?? hintRow.wordid ?? ""),
+              hinttext: String(hintRow.hint_text ?? hintRow.hinttext ?? ""),
+            }))
+            .filter((hintRow) => hintRow.wordid && hintRow.hinttext) ?? [];
+
+        setContent(
+          lettersFromDb.length > 0 && correctWords.length > 0
+            ? { letters: lettersFromDb, correctWords, hints }
+            : INITIAL_DATA,
+        );
+      } catch (e) {
+        console.log("word builder content load failed", e);
+        if (active) setContent(INITIAL_DATA);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    setFoundWords([]);
+    setCurrentPath([]);
+    setTouchPos({ x: 0, y: 0 });
+    setIsDragging(false);
+    setHint(null);
+    setWrongAttempts(0);
+    setHintsUsed(0);
+    setCompleted(false);
+    setSelectedWord(null);
+    setScore(0);
+    setCombo(0);
+    setFeedbackText(null);
+    pathRef.current = [];
+    sessionStartRef.current = Date.now();
+    savedRef.current = false;
+  }, [content]);
+
   const handleWordPress = async (word: string) => {
     setSelectedWord(word);
     await fetchExplanation(word, language);
@@ -67,7 +166,7 @@ const WordBuilder = () => {
     });
   }, [letters]);
 
-  const handleTouch = (x: number, y: number) => {
+  const handleTouch = useCallback((x: number, y: number) => {
     letterPositions.forEach((pos, index) => {
       const dist = Math.hypot(x - pos.x, y - pos.y);
 
@@ -90,12 +189,12 @@ const WordBuilder = () => {
         }
       }
     });
-  };
+  }, [letterPositions]);
 
   
 
-  const panResponder = useRef(
-    PanResponder.create({
+  const panResponder = useMemo(
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
 
@@ -117,7 +216,7 @@ const WordBuilder = () => {
         setIsDragging(false);
 
         const word = pathRef.current.map(idx => letters[idx]).join('');
-        const foundWordData = INITIAL_DATA.correctWords.find(w => w.wordtext === word);
+        const foundWordData = content.correctWords.find(w => w.wordtext === word);
 
         if (foundWordData) {
           if (!foundWords.includes(word)) {
@@ -132,7 +231,7 @@ const WordBuilder = () => {
             setTimeout(() => setFeedbackText(null), 1000);
 
             setHint(null);
-            if (foundWords.length + 1 >= INITIAL_DATA.correctWords.length) {
+            if (foundWords.length + 1 >= content.correctWords.length) {
               setCompleted(true);
             }
 
@@ -144,8 +243,8 @@ const WordBuilder = () => {
 
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-          const remainingWord = INITIAL_DATA.correctWords.find(w => !foundWords.includes(w.wordtext));
-          const hintObj = INITIAL_DATA.hints.find(h => h.wordid === remainingWord?.wordid);
+          const remainingWord = content.correctWords.find(w => !foundWords.includes(w.wordtext));
+          const hintObj = content.hints.find(h => h.wordid === remainingWord?.wordid);
 
           if (hintObj?.hinttext) {
             setHintsUsed((prev) => prev + 1);
@@ -156,8 +255,9 @@ const WordBuilder = () => {
         pathRef.current = [];
         setCurrentPath([]);
       },
-    })
-  ).current;
+    }),
+    [combo, content.correctWords, content.hints, foundWords, handleTouch, letters],
+  );
 
   React.useEffect(() => {
     if (!completed || savedRef.current) return;
@@ -168,7 +268,7 @@ const WordBuilder = () => {
       const totalTime = Math.round((Date.now() - sessionStartRef.current) / 1000);
       const scored = scoreWordBuilder({
         wordsFound: foundWords.length,
-        totalPossibleWords: INITIAL_DATA.correctWords.length,
+        totalPossibleWords: content.correctWords.length,
         wrongAttempts,
         hintsUsed,
         timeTakenSeconds: totalTime,
@@ -183,18 +283,18 @@ const WordBuilder = () => {
         time_spent: totalTime,
         metrics: {
           words_found: foundWords,
-          total_possible_words: INITIAL_DATA.correctWords.length,
+          total_possible_words: content.correctWords.length,
           wrong_attempts: wrongAttempts,
           hints_used: hintsUsed,
           time_taken: totalTime,
-          skills: scored.skills,
         },
+        skill_breakdown: scored.skills,
         synced: 0,
         created_at: now,
         updated_at: now,
       });
     })();
-  }, [completed, foundWords, hintsUsed, id, wrongAttempts]);
+  }, [completed, content.correctWords.length, foundWords, hintsUsed, id, wrongAttempts]);
 
   return (
     <GameLayout title={`Level ${id}`}>
@@ -225,6 +325,7 @@ const WordBuilder = () => {
           {feedbackText && (
             <Text style={styles.feedbackText}>{feedbackText}</Text>
           )}
+          {hint && <Text style={styles.hintText}>{hint}</Text>}
         </View>
 
         
@@ -272,7 +373,7 @@ const WordBuilder = () => {
           </View>
         </View>
         <View style={styles.foundContainer}>
-          {INITIAL_DATA.correctWords.map((item, index) => (
+          {content.correctWords.map((item, index) => (
             <TouchableOpacity
               key={index}
               onPress={() => foundWords.includes(item.wordtext) && handleWordPress(item.wordtext)}

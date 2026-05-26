@@ -1,5 +1,6 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -15,6 +16,7 @@ type StoryLevel = {
 
 const StoryQuizIndex = () => {
   const [levels, setLevels] = useState<StoryLevel[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -23,6 +25,7 @@ const StoryQuizIndex = () => {
       const rows = await getLevelsForGame("story");
       if (!active) return;
       setLevels(rows as StoryLevel[]);
+      setCompletedIds(getCompletedLevelIds(["story"]));
     };
 
     void load();
@@ -36,8 +39,9 @@ const StoryQuizIndex = () => {
       levels.map((item, index) => ({
         id: item.id,
         levelNumber: item.level_number ?? index + 1,
+        completed: completedIds.has(item.id),
       })),
-    [levels],
+    [completedIds, levels],
   );
 
   return (

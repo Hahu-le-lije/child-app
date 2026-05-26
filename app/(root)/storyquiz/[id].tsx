@@ -338,27 +338,28 @@ const StoryQuizLevel = () => {
       });
       const now = new Date().toISOString();
       const sessionId = `story_${user.id}_${Date.now()}`;
+      const timeSpent = Math.round((Date.now() - sessionStartRef.current) / 1000);
       upsertGameSession({
         id: sessionId,
         child_id: String(user.id),
         game_type: "story",
         content_id: levelId,
         score: storyScore.finalScore,
-        time_spent: Math.round((Date.now() - sessionStartRef.current) / 1000),
+        time_spent: timeSpent,
         metrics: {
           story_id: levelId,
           pages_read: pagesRead,
           total_pages: quiz.length,
           keywords_clicked: keywordsClicked,
           unique_keywords_clicked: uniqueKeywordsClicked,
+          time_spent: timeSpent,
           questions: quiz.map((q) => ({
             question_id: q.id,
             is_correct: Boolean(questionResults[q.id]),
             attempts: questionAttempts[q.id] ?? 0,
           })),
-          skills: storyScore.skills,
-          ui_score: Math.round(finalScore),
         },
+        skill_breakdown: storyScore.skills,
         synced: 0,
         created_at: now,
         updated_at: now,

@@ -52,17 +52,7 @@ const LevelMap = ({
     [levels],
   );
   const displayLevels = useMemo(() => {
-    const list = orderedLevels.slice();
-
-    for (let index = list.length; index < 15; index += 1) {
-      list.push({
-        id: `demo-${index + 1}`,
-        levelNumber: index + 1,
-        locked: index >= 4,
-      });
-    }
-
-    return list;
+    return orderedLevels;
   }, [orderedLevels]);
 
   const progressionLevels = useMemo(() => {
@@ -89,7 +79,7 @@ const LevelMap = ({
     (item) => item.completed,
   ).length;
   const unlockedCount = progressionLevels.filter((item) => !item.locked).length;
-  const currentPulse = useMemo(() => new Animated.Value(1), [currentId]);
+  const currentPulse = useMemo(() => new Animated.Value(1), []);
 
   useEffect(() => {
     const animation = Animated.loop(

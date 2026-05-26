@@ -61,8 +61,8 @@ function computeGuideRect(
   };
 }
 
-function samplePointsAlongPath(path: SkPath, count: number): Array<{ x: number; y: number }> {
-  const points: Array<{ x: number; y: number }> = [];
+function samplePointsAlongPath(path: SkPath, count: number): { x: number; y: number }[] {
+  const points: { x: number; y: number }[] = [];
   const iter = Skia.ContourMeasureIter(path, false, 1);
   let contour = iter.next();
 
@@ -265,6 +265,7 @@ const FidelTracingScreen = () => {
       score: scored.finalScore,
       accuracy: Math.round(accuracy * 100),
       timeTaken: Math.round(timeTaken),
+      strokeOrderCorrect: true,
       skills: scored.skills,
     };
   };
@@ -281,18 +282,18 @@ const FidelTracingScreen = () => {
         id: `tracing_${user.id}_${Date.now()}`,
         child_id: String(user.id),
         game_type: "tracing",
-        content_id: currentQuestion.id,
+        content_id: levelId,
         score: stats.score,
         time_spent: stats.timeTaken ?? 0,
         metrics: {
           letter: currentQuestion.lettertotrace,
           stroke_accuracy: stats.accuracy,
-          trace_mode: "image",
+          stroke_order_correct: stats.strokeOrderCorrect,
           time_taken: stats.timeTaken ?? 0,
           retries: retryCount,
           eraser_used_count: eraserCount,
-          skills: stats.skills,
         },
+        skill_breakdown: stats.skills,
         synced: 0,
         created_at: now,
         updated_at: now,

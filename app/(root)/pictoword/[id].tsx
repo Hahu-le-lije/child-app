@@ -6,7 +6,7 @@ import {
   Image,
   Dimensions,
 } from "react-native";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,6 +14,7 @@ import * as Progress from "react-native-progress";
 import GameLayout from "@/components/GameLayout";
 import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
+import { getGameContent } from "@/services/cms/gameContentService";
 import { scorePictureToWord } from "@/services/gaming/scoring.service";
 
 type JsonImage = { id: string; imagelink: string };
@@ -33,6 +34,19 @@ type Question = {
   questiontext: string;
   images: JsonImage[];
   correctImageId: string;
+};
+
+type PictureContentRow = {
+  id?: string;
+  questiontext?: string;
+  images?: JsonImage[];
+  correctImageId?: string;
+};
+
+type PictureLevel = {
+  id: string;
+  title: string;
+  questions: Question[];
 };
 
 type SessionTrack = {
@@ -312,7 +326,7 @@ const PicToWordGame = () => {
   const { id } = useLocalSearchParams();
   const levelId = String(id);
 
-  const level = useMemo(() => {
+  const fallbackLevel = useMemo(() => {
     const levels = CONTENT.contents["picture to word"].levels;
     const selected = levels[levelId] ?? levels.level_1;
     const keys = sortQuestionKeys(Object.keys(selected));
@@ -330,6 +344,7 @@ const PicToWordGame = () => {
       questions,
     };
   }, [levelId]);
+  const [level, setLevel] = useState<PictureLevel>(fallbackLevel);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
@@ -355,6 +370,52 @@ const PicToWordGame = () => {
   const sessionStartRef = useRef(Date.now());
   const savedRef = useRef(false);
   const currentQuestion = level.questions[currentIndex];
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const rows = (await getGameContent("picture", levelId)) as PictureContentRow[];
+        if (!active) return;
+        const questions = rows
+          .filter((row) => Array.isArray(row.images) && row.images.length > 0)
+          .map((row, index) => ({
+            id: String(row.id ?? `question_${index + 1}`),
+            questiontext: String(row.questiontext ?? ""),
+            images: row.images ?? [],
+            correctImageId: String(row.correctImageId ?? ""),
+          }));
+        setLevel({
+          id: levelId,
+          title: `Picture to Word ${levelId.toUpperCase()}`,
+          questions: questions.length > 0 ? questions : fallbackLevel.questions,
+        });
+      } catch (e) {
+        console.log("picture content load failed", e);
+        if (active) setLevel(fallbackLevel);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [fallbackLevel, levelId]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setSelectedImageId(null);
+    setFeedback({ show: false, correct: false, message: "" });
+    setCompleted(false);
+    setWrongTapTimes([]);
+    setSession({
+      total_questions: level.questions.length,
+      correct_answers: 0,
+      wrong_attempts: 0,
+      time_per_question: [],
+    });
+    startTimeRef.current = Date.now();
+    sessionStartRef.current = Date.now();
+    savedRef.current = false;
+  }, [level]);
 
   const accuracy =
     session.total_questions === 0
@@ -496,9 +557,8 @@ const PicToWordGame = () => {
           correct_answers: session.correct_answers,
           wrong_attempts: session.wrong_attempts,
           time_per_question: session.time_per_question,
-          skills: scored.skills,
-          insights,
         },
+        skill_breakdown: scored.skills,
         synced: 0,
         created_at: now,
         updated_at: now,

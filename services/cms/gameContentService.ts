@@ -33,96 +33,118 @@ export async function getLevelsForGame(game: GameTypeKey) {
 
   switch (game) {
     case "story":
-      return Q.getStoryLevelSummaries(childId);
+      return Q.getStoryLevelSummaries(childId).filter((level) => {
+        const stories = Q.getStoriesForStoryLevel(childId, level.id) as { id: string }[];
+        return stories.some((story) => Q.getStoryQuestions(childId, story.id).length > 0);
+      });
     case "matching": {
       const rows = Q.getMatchingLevels(childId) as Array<
         Record<string, unknown>
       >;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: (r.title as string) ?? `Match level ${i + 1}`,
-        description: "Listen and match",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => Q.getMatchingWords(childId, String(r.id)).length > 0)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: (r.title as string) ?? `Match level ${i + 1}`,
+          description: "Listen and match",
+          difficulty: 1,
+        }));
     }
     case "tracing": {
       const rows = Q.getFidelLevels(childId) as Array<Record<string, unknown>>;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: (r.title as string) ?? `Trace level ${i + 1}`,
-        description: "Fidel tracing",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => Q.getFidelQuestions(childId, String(r.id)).length > 0)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: (r.title as string) ?? `Trace level ${i + 1}`,
+          description: "Fidel tracing",
+          difficulty: 1,
+        }));
     }
     case "sentence_building": {
       const rows = Q.getSentenceLevels(childId) as Array<
         Record<string, unknown>
       >;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: (r.title as string) ?? `Sentence level ${i + 1}`,
-        description: "Put words in order",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => Q.getSentencesForLevel(childId, String(r.id)).length > 0)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: (r.title as string) ?? `Sentence level ${i + 1}`,
+          description: "Put words in order",
+          difficulty: 1,
+        }));
     }
     case "pronunciation": {
       const rows = Q.getPronunciationLevels(childId) as Array<
         Record<string, unknown>
       >;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: (r.word as string) ?? `Word ${i + 1}`,
-        description: "Pronunciation",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => r.word)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: (r.word as string) ?? `Word ${i + 1}`,
+          description: "Pronunciation",
+          difficulty: 1,
+        }));
     }
     case "picture": {
       const rows = Q.getPictureLevels(childId) as Array<
         Record<string, unknown>
       >;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: `Picture quiz ${i + 1}`,
-        description: "Choose the picture",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => Q.getPictureQuestions(childId, String(r.id)).length > 0)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: `Picture quiz ${i + 1}`,
+          description: "Choose the picture",
+          difficulty: 1,
+        }));
     }
     case "fill": {
       const rows = Q.getFillLevels(childId) as Array<Record<string, unknown>>;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: `Fill level ${i + 1}`,
-        description: "Fill in the blank",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => Q.getFillChoices(childId, String(r.id)).length > 0)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: `Fill level ${i + 1}`,
+          description: "Fill in the blank",
+          difficulty: 1,
+        }));
     }
     case "word_builder": {
       const rows = Q.getWordBuilderLevels(childId) as Array<
         Record<string, unknown>
       >;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: `Word builder ${i + 1}`,
-        description: "Build words",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => {
+          const data = Q.getWordBuilderData(childId, String(r.id));
+          return data.letters.length > 0 && data.words.length > 0;
+        })
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: `Word builder ${i + 1}`,
+          description: "Build words",
+          difficulty: 1,
+        }));
     }
     case "voice": {
       const rows = Q.getVoiceLevels(childId) as Array<Record<string, unknown>>;
-      return rows.map((r, i) => ({
-        id: String(r.id),
-        level_number: i + 1,
-        title: `Listen level ${i + 1}`,
-        description: "Voice to word",
-        difficulty: 1,
-      }));
+      return rows
+        .filter((r) => Q.getVoiceChoices(childId, String(r.id)).length > 0)
+        .map((r, i) => ({
+          id: String(r.id),
+          level_number: i + 1,
+          title: `Listen level ${i + 1}`,
+          description: "Voice to word",
+          difficulty: 1,
+        }));
     }
     default:
       return emptyLevels();

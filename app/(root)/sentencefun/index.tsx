@@ -1,5 +1,6 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -14,6 +15,7 @@ type SentenceLevel = {
 
 const SentenceFunIndex = () => {
   const [levels, setLevels] = useState<SentenceLevel[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -22,6 +24,7 @@ const SentenceFunIndex = () => {
       const rows = await getLevelsForGame("sentence_building");
       if (!active) return;
       setLevels(rows as SentenceLevel[]);
+      setCompletedIds(getCompletedLevelIds(["sentence_building"]));
     };
 
     void load();
@@ -36,8 +39,9 @@ const SentenceFunIndex = () => {
       levels.map((item, index) => ({
         id: item.id,
         levelNumber: item.level_number ?? index + 1,
+        completed: completedIds.has(item.id),
       })),
-    [levels],
+    [completedIds, levels],
   );
 
   return (

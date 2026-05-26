@@ -1,5 +1,7 @@
 import GameLayout from "@/components/GameLayout";
 import { getGameContent } from "@/services/cms/gameContentService";
+import { getUser } from "@/services/db/authStorage";
+import { upsertGameSession } from "@/services/db/gameSession.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -105,6 +107,8 @@ const SentenceFunLevel = () => {
   });
 
   const startRef = useRef(Date.now());
+  const sessionStartRef = useRef(Date.now());
+  const savedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -136,6 +140,8 @@ const SentenceFunLevel = () => {
       setCompleted(false);
       setStats({ total: parsed.length, correct: 0, wrong: 0, times: [] });
       startRef.current = Date.now();
+      sessionStartRef.current = Date.now();
+      savedRef.current = false;
       setLoading(false);
     };
 
@@ -185,6 +191,8 @@ const SentenceFunLevel = () => {
     setCompleted(false);
     setStats({ total: questions.length, correct: 0, wrong: 0, times: [] });
     startRef.current = Date.now();
+    sessionStartRef.current = Date.now();
+    savedRef.current = false;
   };
 
   const handlePick = (token: WordToken) => {
@@ -248,7 +256,6 @@ const SentenceFunLevel = () => {
     const idx = picked.findIndex((p) => p.key === token.key);
     if (idx < 0) return;
 
-    const nextPicked = picked.filter((p) => p.key !== token.key);
     const before = picked.slice(0, idx).filter((p) => p.key !== token.key);
     const after = picked.slice(idx + 1);
     const rebuiltPool = shuffle([...pool, token, ...after]);
@@ -256,6 +263,42 @@ const SentenceFunLevel = () => {
     setPicked(before);
     setPool(rebuiltPool);
   };
+
+  useEffect(() => {
+    if (!completed || savedRef.current) return;
+    savedRef.current = true;
+
+    void (async () => {
+      const user = await getUser();
+      if (!user?.id) return;
+
+      const totalTime = Math.round((Date.now() - sessionStartRef.current) / 1000);
+      const now = new Date().toISOString();
+      upsertGameSession({
+        id: `sentence_${user.id}_${Date.now()}`,
+        child_id: String(user.id),
+        game_type: "sentence_building",
+        content_id: levelId,
+        score: Math.round(finalScore),
+        time_spent: totalTime,
+        metrics: {
+          total_questions: stats.total,
+          correct_answers: stats.correct,
+          wrong_attempts: stats.wrong,
+          time_taken: totalTime,
+          average_time: avgTime,
+        },
+        skill_breakdown: {
+          sentence_understanding: accuracy,
+          grammar: accuracy,
+          problem_solving: speed,
+        },
+        synced: 0,
+        created_at: now,
+        updated_at: now,
+      });
+    })();
+  }, [accuracy, avgTime, completed, finalScore, levelId, speed, stats.correct, stats.total, stats.wrong]);
 
   if (loading) {
     return (

@@ -1,5 +1,6 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
+import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -7,11 +8,13 @@ import LevelMap, { LevelMapItem } from "../listenandfill/LevelMap";
 
 const Tracing = () => {
   const [levels, setLevels] = useState<any[]>([]);
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
       const rows = await getLevelsForGame("tracing");
       setLevels(rows);
+      setCompletedIds(getCompletedLevelIds(["tracing"]));
     })();
   }, []);
 
@@ -20,8 +23,9 @@ const Tracing = () => {
       (levels ?? []).map((item: any, index: number) => ({
         id: String(item.id),
         levelNumber: Number(item.level_number) || index + 1,
+        completed: completedIds.has(String(item.id)),
       })),
-    [levels],
+    [completedIds, levels],
   );
 
   return (
