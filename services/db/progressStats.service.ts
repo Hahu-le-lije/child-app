@@ -35,7 +35,9 @@ export type SessionInsight = {
 
 type SessionColumns = {
   hasTimeSpent: boolean;
-  hasUpdatedAt: boolean;
+  updatedColumn: string;
+  createdColumn: string;
+  idColumn: string;
 };
 
 function childScope(childId?: string | number | null) {
@@ -84,10 +86,12 @@ function getSessionColumns(): SessionColumns {
     const names = new Set(rows.map((r) => String(r.name)));
     return {
       hasTimeSpent: names.has("time_spent"),
-      hasUpdatedAt: names.has("updated_at"),
+      updatedColumn: names.has("last_updated") ? "last_updated" : "updated_at",
+      createdColumn: names.has("event_created_at") ? "event_created_at" : "created_at",
+      idColumn: names.has("event_id") ? "event_id" : "id",
     };
   } catch {
-    return { hasTimeSpent: false, hasUpdatedAt: false };
+    return { hasTimeSpent: false, updatedColumn: "updated_at", createdColumn: "created_at", idColumn: "id" };
   }
 }
 
@@ -98,7 +102,7 @@ export function getProgressStats(childId?: string | number | null): {
   const { whereClause, params } = childScope(childId);
   const columns = getSessionColumns();
   const timeExpr = columns.hasTimeSpent ? "time_spent" : "0";
-  const updatedExpr = columns.hasUpdatedAt ? "updated_at" : "created_at";
+  const updatedExpr = columns.updatedColumn;
 
   const totals = db.getFirstSync(
     `
@@ -153,7 +157,7 @@ export function getProgressStats(childId?: string | number | null): {
 export function getProfileStats(childId?: string | number | null): ProfileStats {
   const { whereClause, params } = childScope(childId);
   const columns = getSessionColumns();
-  const updatedExpr = columns.hasUpdatedAt ? "updated_at" : "created_at";
+  const updatedExpr = columns.updatedColumn;
 
   const totals = db.getFirstSync(
     `
@@ -202,19 +206,20 @@ export function getRecentSessionInsights(
   limit = 12
 ): SessionInsight[] {
   const { whereClause, params } = childScope(childId);
+  const columns = getSessionColumns();
   const rows = db.getAllSync(
     `
       SELECT
-        id,
+        ${columns.idColumn} as id,
         game_type as gameType,
         content_id as contentId,
         score,
         COALESCE(time_spent, 0) as timeSpent,
-        created_at as createdAt,
+        ${columns.createdColumn} as createdAt,
         metrics
       FROM game_sessions
       ${whereClause}
-      ORDER BY datetime(COALESCE(updated_at, created_at)) DESC
+      ORDER BY datetime(COALESCE(${columns.updatedColumn}, ${columns.createdColumn})) DESC
       LIMIT ?
     `,
     [...params, limit]

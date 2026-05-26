@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "child_access_token";
+const CMS_CONTENT_TOKEN_KEY = "cms_content_access_token";
 const USER_KEY = "child_profile";
 const EXPIRY_KEY = "child_token_expiry";
 
@@ -15,7 +16,8 @@ function ttlSeconds(expiresIn: number | undefined): number {
 export const saveAuthData = async (
   accessToken: string,
   user: unknown,
-  expiresInSeconds?: number
+  expiresInSeconds?: number,
+  cmsContentToken?: string | null,
 ) => {
   try {
     const ttl = ttlSeconds(expiresInSeconds);
@@ -24,6 +26,9 @@ export const saveAuthData = async (
     await setItem(TOKEN_KEY, accessToken);
     if (user != null) {
       await setItem(USER_KEY, JSON.stringify(user));
+    }
+    if (cmsContentToken?.trim()) {
+      await setItem(CMS_CONTENT_TOKEN_KEY, cmsContentToken.trim());
     }
     await setItem(EXPIRY_KEY, expiryTime.toString());
   } catch (error) {
@@ -41,12 +46,33 @@ export const saveUser = async (user: unknown) => {
   }
 };
 
+export const saveCmsContentToken = async (token: string | null | undefined) => {
+  try {
+    const value = token?.trim();
+    if (value) {
+      await setItem(CMS_CONTENT_TOKEN_KEY, value);
+    } else {
+      await deleteItem(CMS_CONTENT_TOKEN_KEY);
+    }
+  } catch (error) {
+    console.error("error in saving CMS content token:", error);
+  }
+};
+
 export const getAccessToken = async () :Promise<string | null>=> {
     try{
   return await getItem(TOKEN_KEY);
 }catch{
     return null
 }
+};
+
+export const getCmsContentToken = async (): Promise<string | null> => {
+  try {
+    return await getItem(CMS_CONTENT_TOKEN_KEY);
+  } catch {
+    return null;
+  }
 };
 
 export const getUser = async (): Promise<any|null> => {
@@ -70,6 +96,7 @@ export const isTokenValid = async (): Promise<boolean> => {
 export const clearAuth = async () => {
   try {
     await deleteItem(TOKEN_KEY);
+    await deleteItem(CMS_CONTENT_TOKEN_KEY);
     await deleteItem(USER_KEY);
     await deleteItem(EXPIRY_KEY);
   } catch (error) {

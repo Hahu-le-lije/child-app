@@ -209,6 +209,7 @@ export async function fetchContentPackList(): Promise<ContentPackListItem[]> {
     const sizeMb = pickNumber(item, "size", "sizeMb", "size_mb");
     const version = pickString(item, "version", "latest_published_version");
     const id = pickNumber(item, "id", "content_pack_id");
+    const sizeBytes = pickNumber(item, "sizeBytes", "size_bytes");
 
     packs.push({
       id,
@@ -225,6 +226,11 @@ export async function fetchContentPackList(): Promise<ContentPackListItem[]> {
       sizeMb,
       latest_published_version: version,
       version,
+      checksum: pickString(item, "checksum") ?? null,
+      sizeBytes,
+      minAppVersion: pickString(item, "minAppVersion", "min_app_version"),
+      manifestUrl: pickString(item, "manifestUrl", "manifest_url"),
+      downloadUrl: pickString(item, "downloadUrl", "download_url"),
       is_active:
         typeof item.is_active === "boolean" ? item.is_active : undefined,
     });

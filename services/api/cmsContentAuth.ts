@@ -1,4 +1,4 @@
-import { getAccessToken } from "@/services/db/authStorage";
+import { getCmsContentToken } from "@/services/db/authStorage";
 
 const CMS_BASE_URL =
   process.env.EXPO_PUBLIC_CONTENT_API?.trim().replace(/\/+$/, "") ?? "";
@@ -6,6 +6,11 @@ const CMS_BASE_URL =
 const CONTENT_ROOT = (
   process.env.EXPO_PUBLIC_CONTENT_ROOT?.trim() || "/api/content"
 ).replace(/\/+$/, "");
+
+const ENV_CMS_CONTENT_TOKEN =
+  process.env.EXPO_PUBLIC_CMS_CONTENT_TOKEN?.trim() ||
+  process.env.EXPO_PUBLIC_CONTENT_TOKEN?.trim() ||
+  "";
 
 export type ContentRequestContext = {
   url: string;
@@ -25,10 +30,12 @@ export async function buildContentRequest(
     throw new Error("EXPO_PUBLIC_CONTENT_API is not set.");
   }
 
-  const token = await getAccessToken();
+  const token = (await getCmsContentToken())?.trim() || ENV_CMS_CONTENT_TOKEN;
 
-  if (!token?.trim()) {
-    throw new Error("Log in to load content from the server.");
+  if (!token) {
+    throw new Error(
+      "CMS content bearer token is missing. Provide a CMS token with aud=cms and scope=content:read.",
+    );
   }
 
   const path = restPath.startsWith("/") ? restPath : `/${restPath}`;
@@ -39,7 +46,7 @@ export async function buildContentRequest(
     method: "GET",
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${token.trim()}`,
+      Authorization: `Bearer ${token}`,
     },
   };
 }

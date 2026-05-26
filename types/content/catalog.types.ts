@@ -9,6 +9,11 @@ export type ContentPack = {
   size_mb?: number;
   is_active?: boolean;
   latest_published_version?: string | number | null;
+  checksum?: string | null;
+  sizeBytes?: number;
+  minAppVersion?: string;
+  manifestUrl?: string;
+  downloadUrl?: string;
   /** Normalized from latest_published_version for UI comparisons */
   version?: string;
   /** API aliases normalized at fetch time */
