@@ -23,7 +23,6 @@ export type LoginResponse = {
   accessToken: string;
   expiresIn: number;
   user: AuthUser;
-  cmsContentToken?: string;
 };
 
 type JwtDebugClaims = {
@@ -93,16 +92,6 @@ function normalizeUser(raw: unknown): AuthUser | undefined {
   return { ...o, id, username } as AuthUser;
 }
 
-function pickNestedString(
-  obj: Record<string, unknown>,
-  key: string,
-  ...nestedKeys: string[]
-): string | undefined {
-  const inner = obj[key];
-  if (!inner || typeof inner !== "object" || Array.isArray(inner)) return undefined;
-  return pickString(inner as Record<string, unknown>, ...nestedKeys);
-}
-
 function maskToken(token: string | undefined): string | null {
   if (!token) return null;
   if (token.length <= 16) return `${token.slice(0, 4)}...`;
@@ -122,7 +111,6 @@ function debugLoginTokens(data: LoginResponse): void {
   if (!__DEV__) return;
 
   const childClaims = decodeClaims(data.accessToken);
-  const cmsClaims = decodeClaims(data.cmsContentToken);
 
   console.log("Login tokens:", {
     child_token: maskToken(data.accessToken),
@@ -134,46 +122,6 @@ function debugLoginTokens(data: LoginResponse): void {
           exp: childClaims.exp,
         }
       : null,
-    cms_token: maskToken(data.cmsContentToken),
-    cms_claims: cmsClaims
-      ? {
-          aud: cmsClaims.aud,
-          scope: cmsClaims.scope,
-          role: cmsClaims.role,
-          sub: cmsClaims.sub,
-          exp: cmsClaims.exp,
-        }
-      : null,
-  });
-}
-
-function debugMissingCmsToken(data: Record<string, unknown>): void {
-  if (!__DEV__) return;
-
-  console.log("CMS content token missing from login response:", {
-    top_level_keys: Object.keys(data),
-    cms_keys:
-      data.cms && typeof data.cms === "object" && !Array.isArray(data.cms)
-        ? Object.keys(data.cms as Record<string, unknown>)
-        : null,
-    content_keys:
-      data.content &&
-      typeof data.content === "object" &&
-      !Array.isArray(data.content)
-        ? Object.keys(data.content as Record<string, unknown>)
-        : null,
-    expected_any_of: [
-      "cmsContentToken",
-      "cms_access_token",
-      "cms_content_token",
-      "contentToken",
-      "content_access_token",
-      "content_token",
-      "cmsToken",
-      "cms_token",
-      "cms.token",
-      "content.token",
-    ],
   });
 }
 
@@ -196,30 +144,10 @@ export function normalizeLoginPayload(data: Record<string, unknown>): LoginRespo
     throw new AuthApiError("Invalid login response: missing child", undefined, "unknown");
   }
 
-  const cmsContentToken =
-    pickString(
-      data,
-      "cmsContentToken",
-      "cms_access_token",
-      "cms_content_token",
-      "contentToken",
-      "content_access_token",
-      "content_token",
-      "cmsToken",
-      "cms_token",
-    ) ??
-    pickNestedString(data, "cms", "access_token", "accessToken", "token") ??
-    pickNestedString(data, "content", "access_token", "accessToken", "token");
-
-  if (!cmsContentToken) {
-    debugMissingCmsToken(data);
-  }
-
   const login = {
     accessToken,
     expiresIn,
     user,
-    ...(cmsContentToken ? { cmsContentToken } : {}),
   };
 
   debugLoginTokens(login);

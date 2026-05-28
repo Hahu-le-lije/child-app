@@ -95,7 +95,7 @@ const Profile = () => {
             />
             <Image
               source={
-                user?.avatar ? { uri: user.avatar } : images.Logo
+                avatarUri && !imageError ? { uri: avatarUri } : images.Logo
               }
               style={styles.mainAvatar}
               onError={() => setImageError(true)}

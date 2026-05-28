@@ -27,6 +27,16 @@ import {
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.75;
 
+const GAME_TYPE_BY_ROUTE: Record<string, string[]> = {
+  listenandfill: ["fill_blank"],
+  match: ["voice_word_match"],
+  pictoword: ["picture_to_word"],
+  speakup: ["pronunciation"],
+  storyquiz: ["story"],
+  tracing: ["tracing"],
+  wordbuilder: ["word_builder"],
+};
+
 const TrophyAlbum = () => {
   const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
@@ -73,10 +83,10 @@ const TrophyAlbum = () => {
   const stickerItems = useMemo(() => {
     return GAMES.map((game) => {
       const routeKey = String(game.route ?? "").toLowerCase();
-      const directMatch = gameStatsByType[routeKey];
-      const pronunciationAlias =
-        routeKey === "speakup" ? gameStatsByType["pronunciation"] : undefined;
-      const stats = directMatch ?? pronunciationAlias;
+      const gameTypeKeys = GAME_TYPE_BY_ROUTE[routeKey] ?? [routeKey];
+      const stats = gameTypeKeys
+        .map((gameType) => gameStatsByType[gameType])
+        .find((item) => item && item.sessionCount > 0);
       const played = Boolean(stats && stats.sessionCount > 0);
       return {
         ...game,

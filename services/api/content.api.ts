@@ -3,11 +3,7 @@ import type {
   ContentPackListItem,
   ContentPackManifest,
 } from "@/types/content";
-import {
-  buildContentRequest,
-  clearCmsServiceTokenCache,
-  type ContentRequestContext,
-} from "@/services/api/cmsContentAuth";
+import { getAccessToken } from "@/services/db/authStorage";
 
 export type { ContentPack, ContentPackListItem, ContentPackManifest };
 
@@ -21,26 +17,42 @@ export class ContentApiError extends Error {
   }
 }
 
+const CMS_BASE_URL =
+  process.env.EXPO_PUBLIC_CONTENT_API?.trim().replace(/\/+$/, "") ?? "";
+
+const CONTENT_ROOT = (
+  process.env.EXPO_PUBLIC_CONTENT_ROOT?.trim() || "/api/content"
+).replace(/\/+$/, "");
+
+function contentUrl(restPath: string): string {
+  if (!CMS_BASE_URL) {
+    throw new ContentApiError("EXPO_PUBLIC_CONTENT_API is not set.");
+  }
+
+  const path = restPath.startsWith("/") ? restPath : `/${restPath}`;
+  return `${CMS_BASE_URL}${CONTENT_ROOT}${path}`;
+}
+
 async function contentFetch(
   restPath: string,
   networkError: string,
-): Promise<{ res: Response; raw: unknown; ctx: ContentRequestContext }> {
-  let ctx: ContentRequestContext;
+): Promise<{ res: Response; raw: unknown }> {
+  const token = (await getAccessToken())?.trim();
 
-  try {
-    ctx = await buildContentRequest(restPath);
-  } catch (error) {
-    throw new ContentApiError(
-      error instanceof Error ? error.message : "Content request setup failed",
-    );
+  if (!token) {
+    throw new ContentApiError("Log in to load content packs.");
   }
 
   let res: Response;
 
   try {
-    res = await fetch(ctx.url, {
-      method: ctx.method,
-      headers: ctx.headers,
+    res = await fetch(contentUrl(restPath), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        contentType: "application/json",
+        Accept:"application/json"
+      },
     });
   } catch {
     throw new ContentApiError(networkError);
@@ -48,7 +60,7 @@ async function contentFetch(
 
   const raw = await readJson(res);
 
-  return { res, raw, ctx };
+  return { res, raw };
 }
 
 async function readJson(res: Response): Promise<unknown> {
@@ -82,8 +94,6 @@ function assertOk(
   if (res.ok) return;
 
   if (res.status === 401) {
-    clearCmsServiceTokenCache();
-
     throw new ContentApiError(
       apiErrorMessage(raw, "Content authorization failed. Log in and try again."),
       401,

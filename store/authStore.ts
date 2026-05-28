@@ -86,7 +86,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       data.accessToken,
       data.user,
       data.expiresIn,
-      data.cmsContentToken,
     );
     set({ user: data.user });
   },

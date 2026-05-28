@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,21 @@ import {
   Image,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
+import {
+  DrawerActions,
+  useFocusEffect,
+  useNavigation,
+} from "@react-navigation/native";
 import { useAuthStore } from "@/store/authStore";
 import { useLanguageStore } from "@/store/languageStore";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
 import { categories, GAMES } from "@/const";
 import { Href, useRouter } from "expo-router";
 import { t } from "@/services/locales";
+import {
+  ProfileStats,
+  getProfileStats,
+} from "@/services/db/progressStats.service";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
@@ -25,6 +33,21 @@ const Home = () => {
   const language = useLanguageStore((state) => state.language);
   const router = useRouter();
   const navigation = useNavigation();
+  const [stats, setStats] = useState<ProfileStats>({
+    points: 0,
+    dayStreak: 0,
+    badges: 0,
+  });
+
+  const loadStats = useCallback(() => {
+    setStats(getProfileStats(user?.id));
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [loadStats]),
+  );
 
   const openDrawer = () => {
     navigation.dispatch(DrawerActions.openDrawer());
@@ -57,7 +80,7 @@ const Home = () => {
           </View>
           <TouchableOpacity style={styles.pointsBadge}>
             <MaterialCommunityIcons name="star" size={24} color="#FFD700" />
-            <Text style={styles.pointsText}>120</Text>
+            <Text style={styles.pointsText}>{stats.points}</Text>
           </TouchableOpacity>
         </View>
 
