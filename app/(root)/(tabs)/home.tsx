@@ -17,16 +17,38 @@ import {
 import { useAuthStore } from "@/store/authStore";
 import { useLanguageStore } from "@/store/languageStore";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
-import { categories, GAMES } from "@/const";
+import { GAMES } from "@/const";
 import { Href, useRouter } from "expo-router";
 import { t } from "@/services/locales";
 import {
+  GameProgress,
   ProfileStats,
+  SessionInsight,
+  SummaryStats,
+  getProgressStats,
   getProfileStats,
+  getRecentSessionInsights,
 } from "@/services/db/progressStats.service";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
+
+const GAME_TYPE_BY_ROUTE: Record<string, string[]> = {
+  listenandfill: ["fill_blank"],
+  match: ["voice_word_match"],
+  pictoword: ["picture_to_word"],
+  speakup: ["pronunciation"],
+  storyquiz: ["story"],
+  tracing: ["tracing"],
+  wordbuilder: ["word_builder"],
+};
+
+const GAME_ROUTE_BY_TYPE: Record<string, string> = Object.entries(
+  GAME_TYPE_BY_ROUTE,
+).reduce<Record<string, string>>((acc, [route, gameTypes]) => {
+  for (const gameType of gameTypes) acc[gameType] = route;
+  return acc;
+}, {});
 
 const Home = () => {
   const user = useAuthStore((state) => state.user);
@@ -38,9 +60,24 @@ const Home = () => {
     dayStreak: 0,
     badges: 0,
   });
+  const [summary, setSummary] = useState<SummaryStats>({
+    totalSessions: 0,
+    avgScore: 0,
+    bestScore: 0,
+    totalMinutes: 0,
+    uniqueGames: 0,
+  });
+  const [gameStats, setGameStats] = useState<GameProgress[]>([]);
+  const [recentSession, setRecentSession] = useState<SessionInsight | null>(
+    null,
+  );
 
   const loadStats = useCallback(() => {
+    const progress = getProgressStats(user?.id);
     setStats(getProfileStats(user?.id));
+    setSummary(progress.summary);
+    setGameStats(progress.gameStats);
+    setRecentSession(getRecentSessionInsights(user?.id, 1)[0] ?? null);
   }, [user?.id]);
 
   useFocusEffect(
@@ -52,6 +89,42 @@ const Home = () => {
   const openDrawer = () => {
     navigation.dispatch(DrawerActions.openDrawer());
   };
+
+  const gameStatsByType = gameStats.reduce<Record<string, GameProgress>>(
+    (acc, item) => {
+      acc[item.gameType.toLowerCase()] = item;
+      return acc;
+    },
+    {},
+  );
+
+  const gamesWithProgress = GAMES.map((game) => {
+    const routeKey = String(game.route ?? "").toLowerCase();
+    const statsForGame = (GAME_TYPE_BY_ROUTE[routeKey] ?? [routeKey])
+      .map((gameType) => gameStatsByType[gameType])
+      .find((item) => item && item.sessionCount > 0);
+
+    return {
+      ...game,
+      sessions: statsForGame?.sessionCount ?? 0,
+      bestScore: statsForGame?.bestScore ?? 0,
+      lastPlayed: statsForGame?.lastPlayed ?? null,
+    };
+  });
+
+  const continueRoute = recentSession
+    ? GAME_ROUTE_BY_TYPE[recentSession.gameType.toLowerCase()]
+    : null;
+  const continueGame =
+    gamesWithProgress.find((game) => game.route === continueRoute) ?? null;
+  const suggestedGame = continueGame ?? gamesWithProgress[0];
+  const continueTitle = continueGame
+    ? `Continue ${continueGame.title}`
+    : "Start your first mission";
+  const continueSubtitle = continueGame
+    ? `Last score ${recentSession?.score ?? 0}% • Best ${continueGame.bestScore}%`
+    : "Play any game once and your progress will appear here.";
+  const continueButtonText = continueGame ? "Resume" : "Start";
 
   return (
     <SafeAreaComponent style={styles.container}>
@@ -84,33 +157,56 @@ const Home = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.catWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.catScroll}
-          >
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={styles.catItem}
-                activeOpacity={0.8}
-                onPress={() => router.push(`/(root)/${cat.route}` as Href)}
-              >
-                <View
-                  style={[styles.catCircle, { backgroundColor: cat.color }]}
-                >
-                  <MaterialCommunityIcons
-                    name={cat.icon as any}
-                    size={30}
-                    color="white"
-                  />
-                </View>
-                <Text style={styles.catText}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={styles.statsStrip}>
+          <View style={styles.statPill}>
+            <MaterialCommunityIcons name="fire" size={18} color="#FF7A59" />
+            <Text style={styles.statNumber}>{stats.dayStreak}</Text>
+            <Text style={styles.statLabel}>day streak</Text>
+          </View>
+          <View style={styles.statPill}>
+            <MaterialCommunityIcons name="controller" size={18} color="#7FD1FF" />
+            <Text style={styles.statNumber}>{summary.totalSessions}</Text>
+            <Text style={styles.statLabel}>sessions</Text>
+          </View>
+          <View style={styles.statPill}>
+            <MaterialCommunityIcons name="trophy" size={18} color="#FFD93D" />
+            <Text style={styles.statNumber}>{summary.bestScore}%</Text>
+            <Text style={styles.statLabel}>best</Text>
+          </View>
         </View>
+
+        {suggestedGame ? (
+          <TouchableOpacity
+            style={styles.continueCard}
+            activeOpacity={0.9}
+            onPress={() => router.push(`/(root)/${suggestedGame.route}` as Href)}
+          >
+            <View style={styles.continueTextArea}>
+              <Text style={styles.continueKicker}>
+                {continueGame ? "Pick up where you left off" : "Ready to play"}
+              </Text>
+              <Text style={styles.continueTitle}>{continueTitle}</Text>
+              <Text style={styles.continueSubtitle}>{continueSubtitle}</Text>
+              <View style={styles.continueAction}>
+                <Text style={styles.continueActionText}>
+                  {continueButtonText}
+                </Text>
+                <MaterialCommunityIcons
+                  name="arrow-right"
+                  size={16}
+                  color="#1F1F39"
+                />
+              </View>
+            </View>
+            <View style={styles.continueImageWrap}>
+              <Image
+                source={suggestedGame.image}
+                style={styles.continueImage}
+                resizeMode="contain"
+              />
+            </View>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
@@ -119,7 +215,7 @@ const Home = () => {
         </View>
 
         <View style={styles.grid}>
-          {GAMES.map((game) => (
+          {gamesWithProgress.map((game) => (
             <TouchableOpacity
               key={game.id}
               style={styles.gameCard}
@@ -137,6 +233,11 @@ const Home = () => {
               <View style={styles.gameInfo}>
                 <Text style={styles.gameTitle} numberOfLines={1}>
                   {game.title}
+                </Text>
+                <Text style={styles.gameProgressText} numberOfLines={1}>
+                  {game.sessions > 0
+                    ? `${game.sessions} plays • Best ${game.bestScore}%`
+                    : "Not started yet"}
                 </Text>
 
                 <View style={styles.playTag}>
@@ -212,34 +313,96 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 
-  catWrapper: {
-    marginBottom: 30,
-  },
-  catScroll: {
+  statsStrip: {
+    flexDirection: "row",
+    gap: 10,
     paddingHorizontal: 20,
+    marginBottom: 18,
   },
-  catItem: {
-    alignItems: "center",
-    marginRight: 24,
-  },
-  catCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 25,
+  statPill: {
+    flex: 1,
+    minHeight: 74,
+    backgroundColor: "#2F2F42",
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    borderWidth: 1,
+    borderColor: "#3E3E55",
   },
-  catText: {
+  statNumber: {
     color: "#FFFFFF",
-    fontSize: 14,
-    fontFamily: "Poppins-SemiBold",
+    fontSize: 18,
+    fontFamily: "Poppins-Bold",
+    marginTop: 3,
   },
-
+  statLabel: {
+    color: "#BABBC9",
+    fontSize: 10,
+    fontFamily: "Poppins-Regular",
+    textAlign: "center",
+  },
+  continueCard: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    minHeight: 168,
+    borderRadius: 24,
+    backgroundColor: "#E8F7FF",
+    flexDirection: "row",
+    overflow: "hidden",
+    borderBottomWidth: 6,
+    borderBottomColor: "#8ECFEF",
+  },
+  continueTextArea: {
+    flex: 1,
+    padding: 18,
+    justifyContent: "center",
+  },
+  continueKicker: {
+    color: "#25708F",
+    fontSize: 12,
+    fontFamily: "Poppins-SemiBold",
+    marginBottom: 4,
+  },
+  continueTitle: {
+    color: "#1F1F39",
+    fontSize: 22,
+    fontFamily: "Poppins-Bold",
+  },
+  continueSubtitle: {
+    color: "#425466",
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  continueAction: {
+    marginTop: 14,
+    backgroundColor: "#FFD93D",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
+  continueActionText: {
+    color: "#1F1F39",
+    fontSize: 12,
+    fontFamily: "Poppins-Bold",
+  },
+  continueImageWrap: {
+    width: 126,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(61,92,255,0.10)",
+  },
+  continueImage: {
+    width: 104,
+    height: 104,
+  },
   sectionHeader: {
     paddingHorizontal: 24,
     marginBottom: 20,
@@ -284,7 +447,13 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontFamily: "Poppins-Bold",
-    marginBottom: 6,
+    marginBottom: 2,
+  },
+  gameProgressText: {
+    color: "#BABBC9",
+    fontSize: 11,
+    fontFamily: "Poppins-Regular",
+    marginBottom: 8,
   },
   playTag: {
     backgroundColor: "#3D5CFF",
