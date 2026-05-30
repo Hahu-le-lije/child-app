@@ -2,7 +2,7 @@ const games = {
   fidelTracing: {
     title: "Fidel Tracing",
     desc: "Write letters",
-    guide: "Pick a level, listen to the sound, then trace the character carefully.",
+    guide: "Pick a level, then trace the character carefully.",
     empty: "No tracing levels available right now.",
   },
   fidelMatch: {
