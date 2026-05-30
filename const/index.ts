@@ -29,7 +29,9 @@ export const GAMES = [
   {
     id: '1',
     title: 'Fidel Tracing',
+    titleKey: 'games.fidelTracing.title',
     desc: 'Write letters',
+    descKey: 'games.fidelTracing.desc',
     image: images.Write,
     featured: true,
     route:"tracing"
@@ -37,21 +39,27 @@ export const GAMES = [
   {
     id: '2',
     title: 'Fidel Match',
+    titleKey: 'games.fidelMatch.title',
     desc: 'Find pairs',
+    descKey: 'games.fidelMatch.desc',
     image: images.find,
     route:"match"
   },
   {
     id: '3',
     title: 'Pic-to-Word',
+    titleKey: 'games.picToWord.title',
     desc: 'Match images',
+    descKey: 'games.picToWord.desc',
     image: images.F2I,
     route:"pictoword",
   },
   {
     id: '4',
     title: 'Word Builder',
+    titleKey: 'games.wordBuilder.title',
     desc: 'Construct words',
+    descKey: 'games.wordBuilder.desc',
     image: images.build,
     featured: true,
     route:"wordbuilder"
@@ -60,14 +68,18 @@ export const GAMES = [
   {
     id: '5',
     title: 'Listen & Fill',
+    titleKey: 'games.listenAndFill.title',
     desc: 'Audio quiz',
+    descKey: 'games.listenAndFill.desc',
     image: images.listen,
     route:"listenandfill"
   },
   {
     id: '6',
     title: 'Speak Up',
+    titleKey: 'games.speakUp.title',
     desc: 'Practice speaking',
+    descKey: 'games.speakUp.desc',
     image: images.speak,
     featured: true,
     route:"speakup"
@@ -75,7 +87,9 @@ export const GAMES = [
   {
     id: '7',
     title: 'Story Quiz',
+    titleKey: 'games.storyQuiz.title',
     desc: 'Comprehension',
+    descKey: 'games.storyQuiz.desc',
     image: images.story,
     route:"storyquiz"
   }

@@ -1,6 +1,8 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -12,6 +14,7 @@ type LevelCard = {
 };
 
 const PicToWord = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<LevelCard[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -46,15 +49,15 @@ const PicToWord = () => {
   );
 
   return (
-    <GameLayout title="Picture to Word" fullScreen>
+    <GameLayout title={t(language, "games.picToWord.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="Picture to Word"
-          guideTitle="How to Play"
-          guideText="Read the word and tap the picture that matches it."
+          gameTitle={t(language, "games.picToWord.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.picToWord.guide")}
           levels={levelNodes}
           onPressLevel={(item) => router.push(`/(root)/pictoword/${item.id}`)}
-          emptyMessage="No picture levels available right now."
+          emptyMessage={t(language, "games.picToWord.empty")}
         />
       </View>
     </GameLayout>

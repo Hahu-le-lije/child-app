@@ -4,8 +4,11 @@ import { audioPronouncation } from "../api/gaming.api";
 import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
 import { scorePronunciation } from "./scoring.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 
 export const useSpeechScoring = () => {
+    const localized = (key: string) => t(useLanguageStore.getState().language, key);
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [lastScore, setLastScore] = useState<number | null>(null);
@@ -16,7 +19,7 @@ export const useSpeechScoring = () => {
     const startRecording = async () => {
         try {
             const { granted } = await Audio.requestPermissionsAsync();
-            if (!granted) return alert("Microphone permission required!");
+            if (!granted) return alert(localized("gameUi.microphonePermission"));
 
             await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
             const { recording } = await Audio.Recording.createAsync(
@@ -43,7 +46,7 @@ export const useSpeechScoring = () => {
 
         if (uri) {
             if (durationMs !== null && durationMs < 800) {
-                alert("Recording is too short. Please hold and speak a little longer.");
+                alert(localized("gameUi.recordingTooShort"));
                 return;
             }
             const nextAttempts = attempts + 1;

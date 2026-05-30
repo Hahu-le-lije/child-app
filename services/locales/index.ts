@@ -1,25 +1,53 @@
 import type { AppLanguage } from "@/store/languageStore";
+import amAuth from "./am/auth";
+import amContent from "./am/content";
+import amGames from "./am/games";
+import amGameUi from "./am/gameUi";
 import amHome from "./am/home";
+import amLevelMap from "./am/levelMap";
 import amNavigation from "./am/navigation";
 import amProfile from "./am/profile";
 import amSidebar from "./am/sidebar";
+import amWordDetails from "./am/wordDetails";
+import amProgress from "./am/progress";
+import enAuth from "./en/auth";
+import enContent from "./en/content";
+import enGames from "./en/games";
+import enGameUi from "./en/gameUi";
 import enHome from "./en/home";
+import enLevelMap from "./en/levelMap";
 import enNavigation from "./en/navigation";
 import enProfile from "./en/profile";
+import enProgress from "./en/progress";
 import enSidebar from "./en/sidebar";
+import enWordDetails from "./en/wordDetails";
 
 export const TRANSLATIONS = {
   en: {
+    auth: enAuth,
+    content: enContent,
+    games: enGames,
+    gameUi: enGameUi,
     home: enHome,
+    levelMap: enLevelMap,
     navigation: enNavigation,
     profile: enProfile,
+    progress: enProgress,
     sidebar: enSidebar,
+    wordDetails: enWordDetails,
   },
   am: {
+    auth: amAuth,
+    content: amContent,
+    games: amGames,
+    gameUi: amGameUi,
     home: amHome,
+    levelMap: amLevelMap,
     navigation: amNavigation,
     profile: amProfile,
+    progress: amProgress,
     sidebar: amSidebar,
+    wordDetails: amWordDetails,
   },
 } as const;
 

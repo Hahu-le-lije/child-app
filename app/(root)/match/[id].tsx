@@ -4,6 +4,8 @@ import { getGameContent } from "@/services/cms/gameContentService";
 import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
 import { scoreVoiceMatch } from "@/services/gaming/scoring.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -19,6 +21,7 @@ type MatchItem = {
 const MatchLevel = () => {
   const { id } = useLocalSearchParams();
   const levelId = String(id);
+  const language = useLanguageStore((state) => state.language);
 
   const [rows, setRows] = useState<MatchItem[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -80,7 +83,9 @@ const MatchLevel = () => {
   }) => {
     if (selected) return;
     setSelected(opt.key);
-    setMessage(opt.correct ? "Correct!" : "Try again");
+    setMessage(
+      opt.correct ? t(language, "gameUi.correct") : t(language, "gameUi.tryAgain"),
+    );
     if (opt.correct) {
       setCorrectAnswers((prev) => prev + 1);
     } else {
@@ -131,14 +136,14 @@ const MatchLevel = () => {
   }, [correctAnswers, isCompleted, levelId, replayCount, saved, sessionStartedAt, words.length, wrongAttempts]);
 
   return (
-    <GameLayout title={`Match ${levelId}`}>
+    <GameLayout title={t(language, "gameUi.matchTitle", { id: levelId })}>
       <View style={styles.container}>
         <Text style={styles.help}>
-          Listen, then tap the correct written form.
+          {t(language, "gameUi.matchHelp")}
         </Text>
         <AudioButton
           uri={currentPrompt?.audio_url}
-          label="Play sound"
+          label={t(language, "gameUi.playSound")}
           style={{ marginBottom: 14 }}
           onPlay={() => setReplayCount((prev) => prev + 1)}
         />

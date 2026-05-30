@@ -1,6 +1,8 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -14,6 +16,7 @@ type SentenceLevel = {
 };
 
 const SentenceFunIndex = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<SentenceLevel[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -45,12 +48,12 @@ const SentenceFunIndex = () => {
   );
 
   return (
-    <GameLayout title="Sentence Fun" fullScreen>
+    <GameLayout title={t(language, "games.sentenceFun.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="Sentence Fun"
-          guideTitle="How to Play"
-          guideText="Tap the words in the correct order to build each sentence."
+          gameTitle={t(language, "games.sentenceFun.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.sentenceFun.guide")}
           levels={levelNodes}
           onPressLevel={(item) =>
             router.push({
@@ -58,7 +61,7 @@ const SentenceFunIndex = () => {
               params: { id: item.id },
             })
           }
-          emptyMessage="No sentence levels available right now."
+          emptyMessage={t(language, "games.sentenceFun.empty")}
         />
       </View>
     </GameLayout>

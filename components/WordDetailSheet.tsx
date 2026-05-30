@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Modal from 'react-native-modal';
 import type { WordData } from '@/services/gaming/useWordDetails';
+import { t } from '@/services/locales';
+import { useLanguageStore } from '@/store/languageStore';
 
 interface WordDetailProps {
   isVisible: boolean;
@@ -13,6 +15,8 @@ interface WordDetailProps {
 }
 
 const WordDetailSheet = ({ isVisible, onClose, selectedWord, details, loading, error }: WordDetailProps) => {
+  const language = useLanguageStore((state) => state.language);
+
   return (
     <Modal
       isVisible={isVisible}
@@ -28,7 +32,7 @@ const WordDetailSheet = ({ isVisible, onClose, selectedWord, details, loading, e
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#3D5CFF" />
-            <Text style={styles.metaText}>Loading word details...</Text>
+            <Text style={styles.metaText}>{t(language, "wordDetails.loading")}</Text>
           </View>
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
@@ -39,13 +43,13 @@ const WordDetailSheet = ({ isVisible, onClose, selectedWord, details, loading, e
             )}
 
             <View style={styles.section}>
-              <Text style={styles.label}>Meaning</Text>
+              <Text style={styles.label}>{t(language, "wordDetails.meaning")}</Text>
               <Text style={styles.value}>{details.definition}</Text>
             </View>
 
             {!!details.learning_content?.length && (
               <View style={styles.section}>
-                <Text style={styles.label}>Example Sentences</Text>
+                <Text style={styles.label}>{t(language, "wordDetails.examples")}</Text>
                 {details.learning_content.slice(0, 3).map((item, index) => (
                   <View key={`${item.amharic}-${index}`} style={styles.sentenceItem}>
                     <Text style={styles.sentence}>{item.amharic}</Text>
@@ -58,11 +62,11 @@ const WordDetailSheet = ({ isVisible, onClose, selectedWord, details, loading, e
             )}
           </>
         ) : (
-          <Text style={styles.metaText}>Tap a word to see details.</Text>
+          <Text style={styles.metaText}>{t(language, "wordDetails.empty")}</Text>
         )}
 
         <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeText}>Close</Text>
+          <Text style={styles.closeText}>{t(language, "wordDetails.close")}</Text>
         </TouchableOpacity>
       </View>
     </Modal>

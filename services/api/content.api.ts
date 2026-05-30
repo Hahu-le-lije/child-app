@@ -20,14 +20,9 @@ export class ContentApiError extends Error {
 const CMS_BASE_URL =
   process.env.EXPO_PUBLIC_CONTENT_API?.trim().replace(/\/+$/, "") ?? "";
 
-const CONTENT_ROOT = (
-  process.env.EXPO_PUBLIC_CONTENT_ROOT?.trim() || "/api/content"
-).replace(/\/+$/, "");
-
+const CONTENT_ROOT ="/api/content"
 function contentUrl(restPath: string): string {
-  if (!CMS_BASE_URL) {
-    throw new ContentApiError("EXPO_PUBLIC_CONTENT_API is not set.");
-  }
+ 
 
   const path = restPath.startsWith("/") ? restPath : `/${restPath}`;
   return `${CMS_BASE_URL}${CONTENT_ROOT}${path}`;
@@ -38,6 +33,7 @@ async function contentFetch(
   networkError: string,
 ): Promise<{ res: Response; raw: unknown }> {
   const token = (await getAccessToken())?.trim();
+  console.log("token to send for cms: ",token)
 
   if (!token) {
     throw new ContentApiError("Log in to load content packs.");

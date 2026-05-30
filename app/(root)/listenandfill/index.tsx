@@ -4,6 +4,8 @@ import { router } from "expo-router";
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import LevelMap, { LevelMapItem } from "./LevelMap";
 
 type ListenQuestion = {
@@ -110,6 +112,7 @@ export const LISTEN_AND_FILL_CONTENT: ListenAndFillJson = {
 };
 
 const ListenAndFillIndex = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<LevelCard[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -142,12 +145,12 @@ const ListenAndFillIndex = () => {
   );
 
   return (
-    <GameLayout title="Listen and Fill" fullScreen>
+    <GameLayout title={t(language, "games.listenAndFill.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="Listen and Fill"
-          guideTitle="How to Play"
-          guideText="Listen to the audio, find the missing word, and fill the blank correctly."
+          gameTitle={t(language, "games.listenAndFill.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.listenAndFill.guide")}
           levels={levelNodes}
           onPressLevel={(item) =>
             router.push({
@@ -155,7 +158,7 @@ const ListenAndFillIndex = () => {
               params: { id: item.id },
             })
           }
-          emptyMessage="No listen-and-fill levels available right now."
+          emptyMessage={t(language, "games.listenAndFill.empty")}
         />
       </View>
     </GameLayout>

@@ -12,6 +12,7 @@ import { scoreWordBuilder } from '@/services/gaming/scoring.service';
 import { getUser } from '@/services/db/authStorage';
 import { upsertGameSession } from '@/services/db/gameSession.service';
 import { getGameContent } from '@/services/cms/gameContentService';
+import { t } from '@/services/locales';
 
 const { width } = Dimensions.get('window');
 const WHEEL = width * 0.85;
@@ -226,7 +227,12 @@ const WordBuilder = () => {
             setCombo(newCombo);
             setScore(prev => prev + 10 * newCombo);
 
-            const messages = ['Nice!', 'Great!', 'Awesome!', 'Brilliant!'];
+            const messages = [
+              t(language, 'gameUi.nice'),
+              t(language, 'gameUi.great'),
+              t(language, 'gameUi.awesome'),
+              t(language, 'gameUi.brilliant'),
+            ];
             setFeedbackText(messages[Math.floor(Math.random() * messages.length)]);
             setTimeout(() => setFeedbackText(null), 1000);
 
@@ -249,7 +255,7 @@ const WordBuilder = () => {
           if (hintObj?.hinttext) {
             setHintsUsed((prev) => prev + 1);
           }
-          setHint(hintObj?.hinttext || 'Try again!');
+          setHint(hintObj?.hinttext || t(language, 'gameUi.tryAgain'));
         }
 
         pathRef.current = [];
@@ -297,7 +303,7 @@ const WordBuilder = () => {
   }, [completed, content.correctWords.length, foundWords, hintsUsed, id, wrongAttempts]);
 
   return (
-    <GameLayout title={`Level ${id}`}>
+    <GameLayout title={t(language, 'gameUi.levelTitle', { id: String(id) })}>
       <View style={styles.container}>
 
       

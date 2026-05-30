@@ -1,6 +1,8 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -10,6 +12,7 @@ import {
 import LevelMap, { LevelMapItem } from "../listenandfill/LevelMap";
 
 const SpeakUP = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<any[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -32,15 +35,15 @@ const SpeakUP = () => {
   );
 
   return (
-    <GameLayout title="SpeakUP" fullScreen>
+    <GameLayout title={t(language, "games.speakUp.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="SpeakUP"
-          guideTitle="How to Play"
-          guideText="Pick a level, listen to the word, then tap the mic and say it clearly."
+          gameTitle={t(language, "games.speakUp.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.speakUp.guide")}
           levels={levelNodes}
           onPressLevel={(item) => router.push(`/(root)/speakup/${item.id}`)}
-          emptyMessage="No pronunciation levels available right now."
+          emptyMessage={t(language, "games.speakUp.empty")}
         />
       </View>
     </GameLayout>

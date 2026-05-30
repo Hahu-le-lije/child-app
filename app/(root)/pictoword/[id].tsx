@@ -16,6 +16,8 @@ import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
 import { getGameContent } from "@/services/cms/gameContentService";
 import { scorePictureToWord } from "@/services/gaming/scoring.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 
 type JsonImage = { id: string; imagelink: string };
 type JsonQuestion = {
@@ -325,6 +327,7 @@ const calcSpeed = (times: number[]) => {
 const PicToWordGame = () => {
   const { id } = useLocalSearchParams();
   const levelId = String(id);
+  const language = useLanguageStore((state) => state.language);
 
   const fallbackLevel = useMemo(() => {
     const levels = CONTENT.contents["picture to word"].levels;
@@ -340,7 +343,9 @@ const PicToWordGame = () => {
 
     return {
       id: levelId,
-      title: `Picture to Word ${levelId.toUpperCase()}`,
+      title: t(language, "gameUi.pictureLevelTitle", {
+        id: levelId.toUpperCase(),
+      }),
       questions,
     };
   }, [levelId]);
@@ -387,7 +392,9 @@ const PicToWordGame = () => {
           }));
         setLevel({
           id: levelId,
-          title: `Picture to Word ${levelId.toUpperCase()}`,
+          title: t(language, "gameUi.pictureLevelTitle", {
+            id: levelId.toUpperCase(),
+          }),
           questions: questions.length > 0 ? questions : fallbackLevel.questions,
         });
       } catch (e) {
@@ -494,7 +501,7 @@ const PicToWordGame = () => {
       setFeedback({
         show: true,
         correct: true,
-        message: "Awesome! Correct image!",
+        message: t(language, "gameUi.pictureCorrect"),
       });
 
       setTimeout(() => {
@@ -519,7 +526,7 @@ const PicToWordGame = () => {
     setFeedback({
       show: true,
       correct: false,
-      message: "Good try! Pick another image.",
+      message: t(language, "gameUi.pictureWrong"),
     });
 
     setTimeout(() => {
@@ -568,16 +575,16 @@ const PicToWordGame = () => {
 
   if (!currentQuestion && !completed) {
     return (
-      <GameLayout title="Picture to Word">
+      <GameLayout title={t(language, "games.picToWord.title")}>
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyText}>
-            No questions found for this level.
+            {t(language, "gameUi.noQuestions")}
           </Text>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.primaryButtonText}>Back to Levels</Text>
+            <Text style={styles.primaryButtonText}>{t(language, "gameUi.backToLevels")}</Text>
           </TouchableOpacity>
         </View>
       </GameLayout>
@@ -586,7 +593,7 @@ const PicToWordGame = () => {
 
   if (completed) {
     return (
-      <GameLayout title="Level Complete">
+      <GameLayout title={t(language, "gameUi.levelCompleteTitle")}>
         <View style={styles.completeWrap}>
           <LinearGradient
             colors={["#4D72FF", "#62A7FF"]}
@@ -599,42 +606,50 @@ const PicToWordGame = () => {
               size={74}
               color="#FFE57B"
             />
-            <Text style={styles.completeTitle}>Fantastic!</Text>
-            <Text style={styles.completeSubtitle}>{level.title} complete</Text>
+            <Text style={styles.completeTitle}>{t(language, "gameUi.fantastic")}</Text>
+            <Text style={styles.completeSubtitle}>
+              {t(language, "gameUi.completeSubtitle", { title: level.title })}
+            </Text>
           </LinearGradient>
 
           <View style={styles.metricRow}>
             <View style={styles.metricCard}>
               <Text style={styles.metricValue}>{Math.round(finalScore)}</Text>
-              <Text style={styles.metricLabel}>Final Score</Text>
+              <Text style={styles.metricLabel}>{t(language, "gameUi.finalScore")}</Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricValue}>
                 {Math.round(accuracy * 100)}%
               </Text>
-              <Text style={styles.metricLabel}>Accuracy</Text>
+              <Text style={styles.metricLabel}>{t(language, "gameUi.accuracy")}</Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricValue}>{Math.round(speed * 100)}%</Text>
-              <Text style={styles.metricLabel}>Speed</Text>
+              <Text style={styles.metricLabel}>{t(language, "gameUi.speed")}</Text>
             </View>
           </View>
 
           <View style={styles.skillCard}>
-            <Text style={styles.cardTitle}>Skills</Text>
+            <Text style={styles.cardTitle}>{t(language, "gameUi.skills")}</Text>
             <Text style={styles.cardLine}>
-              Visual Recognition: {Math.round(skills.visual_recognition * 100)}%
+              {t(language, "gameUi.visualRecognition", {
+                value: Math.round(skills.visual_recognition * 100),
+              })}
             </Text>
             <Text style={styles.cardLine}>
-              Word Association: {Math.round(skills.word_association * 100)}%
+              {t(language, "gameUi.wordAssociation", {
+                value: Math.round(skills.word_association * 100),
+              })}
             </Text>
             <Text style={styles.cardLine}>
-              Decision Speed: {Math.round(skills.decision_speed * 100)}%
+              {t(language, "gameUi.decisionSpeed", {
+                value: Math.round(skills.decision_speed * 100),
+              })}
             </Text>
           </View>
 
           <View style={styles.insightCard}>
-            <Text style={styles.cardTitle}>Insights</Text>
+            <Text style={styles.cardTitle}>{t(language, "gameUi.insights")}</Text>
             {insights.map((line, idx) => (
               <Text key={idx} style={styles.cardLine}>
                 • {line}
@@ -643,13 +658,13 @@ const PicToWordGame = () => {
           </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={resetLevel}>
-            <Text style={styles.primaryButtonText}>Play Again</Text>
+            <Text style={styles.primaryButtonText}>{t(language, "gameUi.playAgain")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.secondaryButtonText}>Back to Levels</Text>
+            <Text style={styles.secondaryButtonText}>{t(language, "gameUi.backToLevels")}</Text>
           </TouchableOpacity>
         </View>
       </GameLayout>
@@ -667,7 +682,10 @@ const PicToWordGame = () => {
         >
           <View style={styles.progressWrap}>
             <Text style={styles.progressLabel}>
-              Question {currentIndex + 1}/{level.questions.length}
+              {t(language, "gameUi.questionProgress", {
+                current: currentIndex + 1,
+                total: level.questions.length,
+              })}
             </Text>
             <Progress.Bar
               progress={(currentIndex + 1) / level.questions.length}
@@ -690,7 +708,7 @@ const PicToWordGame = () => {
         </LinearGradient>
 
         <View style={styles.promptCard}>
-          <Text style={styles.promptLabel}>Tap the image for</Text>
+          <Text style={styles.promptLabel}>{t(language, "gameUi.tapImageFor")}</Text>
           <Text style={styles.promptWord}>{currentQuestion.questiontext}</Text>
         </View>
 
@@ -734,19 +752,19 @@ const PicToWordGame = () => {
         <View style={styles.bottomRow}>
           <View style={styles.bottomCard}>
             <Text style={styles.bottomValue}>{session.wrong_attempts}</Text>
-            <Text style={styles.bottomLabel}>Wrong</Text>
+            <Text style={styles.bottomLabel}>{t(language, "gameUi.wrong")}</Text>
           </View>
           <View style={styles.bottomCard}>
             <Text style={styles.bottomValue}>
               {session.time_per_question.length}
             </Text>
-            <Text style={styles.bottomLabel}>Answered</Text>
+            <Text style={styles.bottomLabel}>{t(language, "gameUi.answered")}</Text>
           </View>
           <View style={styles.bottomCard}>
             <Text style={styles.bottomValue}>
               {level.questions.length - currentIndex - 1}
             </Text>
-            <Text style={styles.bottomLabel}>Left</Text>
+            <Text style={styles.bottomLabel}>{t(language, "gameUi.left")}</Text>
           </View>
         </View>
       </View>

@@ -19,6 +19,8 @@ import {
 import { useContentStore } from "@/store/contentStore";
 import { getInstalledPacks } from "@/services/cms/contentQueryService";
 import { getUser } from "@/services/db/authStorage";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 
 async function getDeviceStorage(): Promise<{ free: number; total: number }> {
   try {
@@ -39,6 +41,7 @@ async function getDeviceStorage(): Promise<{ free: number; total: number }> {
 }
 
 const Content = () => {
+  const language = useLanguageStore((state) => state.language);
   const {
     packs,
     progressSlug,
@@ -80,23 +83,26 @@ const Content = () => {
     try {
       const user = await getUser();
       if (!user?.id) {
-        Alert.alert("Not signed in", "Log in to see saved packs.");
+        Alert.alert(
+          t(language, "content.notSignedInTitle"),
+          t(language, "content.notSignedInMessage"),
+        );
         return;
       }
       const rows = getInstalledPacks(String(user.id));
       const lines =
         rows.length === 0
-          ? "No packs installed yet."
+          ? t(language, "content.noPacksInstalled")
           : rows
               .map(
                 (r) =>
                   `• ${r.title ?? r.slug} (${r.game_type}) v${r.version ?? "?"} — ${new Date(r.downloaded_at).toLocaleString()}`,
               )
               .join("\n");
-      Alert.alert("Installed packs", lines);
+      Alert.alert(t(language, "content.installedPacksTitle"), lines);
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Could not read local pack records.");
+      Alert.alert(t(language, "content.errorTitle"), t(language, "content.readRecordsError"));
     }
   };
 
@@ -109,19 +115,19 @@ const Content = () => {
       const dirInfo = await FileSystem.getInfoAsync(base);
       if (!dirInfo.exists) {
         Alert.alert(
-          "Content folder",
-          user?.id ? "No downloads yet." : "Sign in first.",
+          t(language, "content.contentFolderTitle"),
+          user?.id ? t(language, "content.noDownloadsYet") : t(language, "content.signInFirst"),
         );
         return;
       }
       const names = await FileSystem.readDirectoryAsync(base);
       Alert.alert(
-        "Downloaded folders",
-        names.length ? names.join(", ") : "Empty",
+        t(language, "content.downloadedFoldersTitle"),
+        names.length ? names.join(", ") : t(language, "content.empty"),
       );
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Could not list folders.");
+      Alert.alert(t(language, "content.errorTitle"), t(language, "content.listFoldersError"));
     }
   };
 
@@ -132,22 +138,31 @@ const Content = () => {
     try {
       const result = await downloadPack(item, { force });
       if (result.status === "skipped") {
-        Alert.alert("Up to date", `"${item.title}" is already on this device.`);
+        Alert.alert(
+          t(language, "content.upToDateTitle"),
+          t(language, "content.upToDateMessage", { title: item.title }),
+        );
         return;
       }
       if (result.status === "updated") {
-        Alert.alert("Updated", `"${item.title}" was updated offline.`);
+        Alert.alert(
+          t(language, "content.updatedTitle"),
+          t(language, "content.updatedMessage", { title: item.title }),
+        );
         return;
       }
-      Alert.alert("Saved", `"${item.title}" is ready offline.`);
+      Alert.alert(
+        t(language, "content.savedTitle"),
+        t(language, "content.savedMessage", { title: item.title }),
+      );
     } catch (err: unknown) {
       const msg =
         err instanceof ContentApiError
           ? err.message
           : err instanceof Error
             ? err.message
-            : "Download failed.";
-      Alert.alert("Download problem", msg);
+            : t(language, "content.downloadFailed");
+      Alert.alert(t(language, "content.downloadProblemTitle"), msg);
     }
   };
 
@@ -221,7 +236,7 @@ const Content = () => {
       <SafeAreaComponent style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator color="#5D5FEF" />
-          <Text style={styles.loadingText}>Loading content...</Text>
+          <Text style={styles.loadingText}>{t(language, "content.loading")}</Text>
         </View>
       </SafeAreaComponent>
     );
@@ -230,10 +245,10 @@ const Content = () => {
   return (
     <SafeAreaComponent style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Offline Content</Text>
+        <Text style={styles.headerTitle}>{t(language, "content.title")}</Text>
         <Text style={styles.subtitle}>
-          Download packs to play without internet
-          {fromCache ? " (cached catalog)" : ""}
+          {t(language, "content.subtitle")}
+          {fromCache ? t(language, "content.cachedCatalog") : ""}
         </Text>
       </View>
 
@@ -241,7 +256,7 @@ const Content = () => {
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity onPress={() => void loadData(true)}>
-            <Text style={styles.retryInline}>Retry</Text>
+            <Text style={styles.retryInline}>{t(language, "content.retry")}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -251,19 +266,19 @@ const Content = () => {
           onPress={checkInstalledPacks}
           style={styles.debugButton}
         >
-          <Text style={styles.debugButtonText}>Saved packs</Text>
+          <Text style={styles.debugButtonText}>{t(language, "content.savedPacks")}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={listPackFolders} style={styles.debugButton}>
-          <Text style={styles.debugButtonText}>Folders</Text>
+          <Text style={styles.debugButtonText}>{t(language, "content.folders")}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.storage}>
         <Text style={styles.storageText}>
-          Free: {formatGB(storage.free)} GB
+          {t(language, "content.free", { value: formatGB(storage.free) })}
         </Text>
         <Text style={styles.storageText}>
-          Total: {formatGB(storage.total)} GB
+          {t(language, "content.total", { value: formatGB(storage.total) })}
         </Text>
       </View>
 
@@ -274,15 +289,15 @@ const Content = () => {
             size={60}
             color="#3F3F5F"
           />
-          <Text style={styles.emptyText}>No content packs from the server</Text>
+          <Text style={styles.emptyText}>{t(language, "content.noServerPacks")}</Text>
           <Text style={styles.emptyHint}>
-            Log in first. Content uses your session token to sign CMS requests.
+            {t(language, "content.emptyHint")}
           </Text>
           <TouchableOpacity
             onPress={() => void loadData(true)}
             style={styles.retryButton}
           >
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{t(language, "content.retry")}</Text>
           </TouchableOpacity>
         </View>
       ) : (

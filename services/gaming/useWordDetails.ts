@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { wordExplanation } from '../api/gaming.api';
+import { t } from '@/services/locales';
+import { useLanguageStore } from '@/store/languageStore';
 
 export interface LearningContentItem {
   amharic: string;
@@ -26,12 +28,12 @@ export const useWordDetails = () => {
     try {
       const data = await wordExplanation(word, language);
       if (!data || !data.definition) {
-        throw new Error('Invalid response');
+        throw new Error(t(useLanguageStore.getState().language, 'wordDetails.invalidResponse'));
       }
       setExplanation(data as WordData);
       return data as WordData;
     } catch (err) {
-      const msg = 'Could not find the meaning. Try another word!';
+      const msg = t(useLanguageStore.getState().language, 'wordDetails.notFound');
       setError(msg);
       console.error(err);
       return null;

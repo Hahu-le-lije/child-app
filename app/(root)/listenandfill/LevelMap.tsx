@@ -12,6 +12,8 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 
 export type LevelMapItem = {
   id: string;
@@ -42,9 +44,10 @@ const LevelMap = ({
   guideText,
   levels,
   onPressLevel,
-  emptyMessage = "No levels found yet.",
+  emptyMessage,
 }: LevelMapProps) => {
   const insets = useSafeAreaInsets();
+  const language = useLanguageStore((state) => state.language);
   const [guideVisible, setGuideVisible] = useState(false);
 
   const orderedLevels = useMemo(
@@ -121,10 +124,10 @@ const LevelMap = ({
         <View style={styles.headerGlow} />
         <View style={styles.headerTopRow}>
           <View style={styles.titleStack}>
-            <Text style={styles.eyebrow}>MISSION MAP</Text>
+            <Text style={styles.eyebrow}>{t(language, "levelMap.eyebrow")}</Text>
             <Text style={styles.title}>{gameTitle}</Text>
             <Text style={styles.subtitle} numberOfLines={2}>
-              Pick a level, follow the trail, and keep climbing.
+              {t(language, "levelMap.subtitle")}
             </Text>
           </View>
 
@@ -144,7 +147,9 @@ const LevelMap = ({
               size={14}
               color="#8EF7C8"
             />
-            <Text style={styles.statText}>{completedCount} done</Text>
+            <Text style={styles.statText}>
+              {t(language, "levelMap.done", { count: completedCount })}
+            </Text>
           </View>
           <View style={styles.statPill}>
             <MaterialCommunityIcons
@@ -152,7 +157,9 @@ const LevelMap = ({
               size={14}
               color="#8AB4FF"
             />
-            <Text style={styles.statText}>{unlockedCount} open</Text>
+            <Text style={styles.statText}>
+              {t(language, "levelMap.open", { count: unlockedCount })}
+            </Text>
           </View>
           <View style={styles.statPill}>
             <MaterialCommunityIcons
@@ -160,7 +167,9 @@ const LevelMap = ({
               size={14}
               color="#FFD36E"
             />
-            <Text style={styles.statText}>{displayLevels.length} total</Text>
+            <Text style={styles.statText}>
+              {t(language, "levelMap.total", { count: displayLevels.length })}
+            </Text>
           </View>
         </View>
       </View>
@@ -182,7 +191,9 @@ const LevelMap = ({
                   size={34}
                   color="rgba(255,255,255,0.75)"
                 />
-                <Text style={styles.emptyText}>{emptyMessage}</Text>
+                <Text style={styles.emptyText}>
+                  {emptyMessage ?? t(language, "levelMap.defaultEmpty")}
+                </Text>
               </View>
             </View>
           }
@@ -305,7 +316,8 @@ const LevelMap = ({
               />
             </View>
             <Text style={styles.modalTitle}>
-              {guideTitle ?? `${gameTitle} Guide`}
+              {guideTitle ??
+                t(language, "levelMap.defaultGuideTitle", { gameTitle })}
             </Text>
             <Text style={styles.modalBody}>{guideText}</Text>
             <TouchableOpacity
@@ -313,7 +325,9 @@ const LevelMap = ({
               onPress={() => setGuideVisible(false)}
               style={styles.modalButton}
             >
-              <Text style={styles.modalButtonText}>{"Let's go"}</Text>
+              <Text style={styles.modalButtonText}>
+                {t(language, "levelMap.letsGo")}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

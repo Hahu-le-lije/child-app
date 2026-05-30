@@ -15,7 +15,9 @@ import SafeAreaComponent from "@/components/SafeAreaComponent";
 import { COLORS, FONTS, GAMES, RADIUS, SPACING } from "@/const";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/store/authStore";
+import { useLanguageStore } from "@/store/languageStore";
 import { useClickSound } from "@/hooks/useSound";
+import { t } from "@/services/locales";
 import {
   GameProgress,
   SummaryStats,
@@ -40,6 +42,7 @@ const GAME_TYPE_BY_ROUTE: Record<string, string[]> = {
 const TrophyAlbum = () => {
   const navigation = useNavigation();
   const user = useAuthStore((state) => state.user);
+  const language = useLanguageStore((state) => state.language);
   const playClickSound = useClickSound();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<SummaryStats>({
@@ -105,6 +108,11 @@ const TrophyAlbum = () => {
       .split("_")
       .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
       .join(" ");
+  const gameTitleFor = (game: (typeof stickerItems)[number]) => {
+    const key = game.titleKey ?? "";
+    const localized = key ? t(language, key) : "";
+    return localized && localized !== key ? localized : game.title;
+  };
 
   const sessionHighlights = useMemo(() => {
     return recentSessions.map((s) => {
@@ -166,30 +174,30 @@ const TrophyAlbum = () => {
             style={styles.menuButton}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
-            accessibilityLabel="Open menu"
+            accessibilityLabel={t(language, "progress.openMenu")}
           >
             <MaterialCommunityIcons name="menu" size={28} color={COLORS.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>My Sticker Book 📖</Text>
+          <Text style={styles.title}>{t(language, "progress.title")}</Text>
         </View>
-        <Text style={styles.subtitle}>Your real progress from local game sessions.</Text>
+        <Text style={styles.subtitle}>{t(language, "progress.subtitle")}</Text>
       </View>
 
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Sessions</Text>
+          <Text style={styles.summaryLabel}>{t(language, "progress.sessions")}</Text>
           <Text style={styles.summaryValue}>{summary.totalSessions}</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Avg Score</Text>
+          <Text style={styles.summaryLabel}>{t(language, "progress.avgScore")}</Text>
           <Text style={styles.summaryValue}>{summary.avgScore}%</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Minutes</Text>
+          <Text style={styles.summaryLabel}>{t(language, "progress.minutes")}</Text>
           <Text style={styles.summaryValue}>{summary.totalMinutes}</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Games</Text>
+          <Text style={styles.summaryLabel}>{t(language, "progress.games")}</Text>
           <Text style={styles.summaryValue}>{summary.uniqueGames}</Text>
         </View>
       </View>
@@ -214,7 +222,7 @@ const TrophyAlbum = () => {
               >
                 {item.played && (
                   <View style={styles.ribbon}>
-                    <Text style={styles.ribbonText}>UNLOCKED</Text>
+                    <Text style={styles.ribbonText}>{t(language, "progress.unlocked")}</Text>
                   </View>
                 )}
 
@@ -228,24 +236,32 @@ const TrophyAlbum = () => {
                 </View>
 
                 <View style={styles.infoArea}>
-                  <Text style={styles.stickerTitle}>{item.title}</Text>
+                  <Text style={styles.stickerTitle}>{gameTitleFor(item)}</Text>
                   {item.played ? (
                     <Text style={styles.stickerDesc}>
-                      {item.sessions} sessions • Avg {item.avgScore}% • Best {item.bestScore}%
+                      {t(language, "progress.playedSummary", {
+                        sessions: item.sessions,
+                        avgScore: item.avgScore,
+                        bestScore: item.bestScore,
+                      })}
                     </Text>
                   ) : (
-                    <Text style={styles.stickerDesc}>Play this game once to unlock its sticker.</Text>
+                    <Text style={styles.stickerDesc}>{t(language, "progress.lockedSticker")}</Text>
                   )}
                   {item.played && item.lastPlayed && (
                     <Text style={styles.lastPlayed}>
-                      Last played: {new Date(item.lastPlayed).toLocaleDateString()}
+                      {t(language, "progress.lastPlayed", {
+                        date: new Date(item.lastPlayed).toLocaleDateString(),
+                      })}
                     </Text>
                   )}
                 </View>
 
                 <View style={styles.footerPill}>
                   <Text style={styles.footerPillText}>
-                    {item.played ? `${item.minutes} min played` : "Not started yet"}
+                    {item.played
+                      ? t(language, "progress.minPlayed", { minutes: item.minutes })
+                      : t(language, "progress.notStarted")}
                   </Text>
                 </View>
               </LinearGradient>
@@ -261,7 +277,7 @@ const TrophyAlbum = () => {
       </View>
 
       <View style={styles.insightSection}>
-        <Text style={styles.insightTitle}>Recent Metrics & Skills</Text>
+        <Text style={styles.insightTitle}>{t(language, "progress.recentMetrics")}</Text>
         <ScrollView
           style={styles.insightList}
           contentContainerStyle={styles.insightListContent}
@@ -270,7 +286,7 @@ const TrophyAlbum = () => {
           {sessionHighlights.length === 0 ? (
             <View style={styles.emptyInsightCard}>
               <Text style={styles.emptyInsightText}>
-                Play a game to see metrics and skill insights here.
+                {t(language, "progress.emptyInsight")}
               </Text>
             </View>
           ) : (
@@ -278,7 +294,9 @@ const TrophyAlbum = () => {
               <View key={session.id} style={styles.insightCard}>
                 <View style={styles.insightHeader}>
                   <Text style={styles.insightGame}>{session.title}</Text>
-                  <Text style={styles.insightScore}>{session.score}%</Text>
+                  <Text style={styles.insightScore}>
+                    {t(language, "progress.score", { score: session.score })}
+                  </Text>
                 </View>
                 {session.lines.map((line, idx) => (
                   <Text key={`${session.id}-${idx}`} style={styles.insightLine}>
@@ -286,8 +304,12 @@ const TrophyAlbum = () => {
                   </Text>
                 ))}
                 <Text style={styles.insightMeta}>
-                  {Math.round(session.timeSpent / 60)} min •{" "}
-                  {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : "-"}
+                  {t(language, "progress.insightMeta", {
+                    minutes: Math.round(session.timeSpent / 60),
+                    date: session.createdAt
+                      ? new Date(session.createdAt).toLocaleDateString()
+                      : "-",
+                  })}
                 </Text>
               </View>
             ))

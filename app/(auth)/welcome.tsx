@@ -4,12 +4,15 @@ import SafeAreaComponent from '@/components/SafeAreaComponent';
 import { useRouter } from 'expo-router';
 import CustomButton from '@/components/CustomButton';
 import { images } from '@/const';
+import { t } from '@/services/locales';
+import { useLanguageStore } from '@/store/languageStore';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 const Welcome = () => {
   const router = useRouter();
+  const language = useLanguageStore((state) => state.language);
 
   return (
    
@@ -22,18 +25,16 @@ const Welcome = () => {
             <Image source={images.Logo} style={styles.logo} resizeMode="contain" />
           </View>
 
-          <Text style={styles.title}>
-            Hi there! 👋
-          </Text>
+          <Text style={styles.title}>{t(language, "auth.welcomeTitle")}</Text>
 
           <Text style={styles.subtitle}>
-            Ready to play and learn? {'\n'}{"Let's jump in! 🚀"}
+            {t(language, "auth.welcomeSubtitle")}
           </Text>
         </View>
 
         <View style={styles.buttons}>
           <CustomButton
-            title="START PLAYING! ✨" 
+            title={t(language, "auth.startPlaying")} 
             onPress={() => router.replace('/(auth)/log-in')}
         
             containerStyle={styles.primaryButton}

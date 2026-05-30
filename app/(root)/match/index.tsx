@@ -1,6 +1,8 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -15,6 +17,7 @@ type MatchLevel = {
 };
 
 const Match = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<MatchLevel[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -44,15 +47,15 @@ const Match = () => {
   );
 
   return (
-    <GameLayout title="Fidel Match" fullScreen>
+    <GameLayout title={t(language, "games.fidelMatch.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="Fidel Match"
-          guideTitle="How to Play"
-          guideText="Match the correct symbols and pairs as fast as you can."
+          gameTitle={t(language, "games.fidelMatch.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.fidelMatch.guide")}
           levels={levelNodes}
           onPressLevel={(item) => router.push(`/(root)/match/${item.id}`)}
-          emptyMessage="No match levels available right now."
+          emptyMessage={t(language, "games.fidelMatch.empty")}
         />
       </View>
     </GameLayout>

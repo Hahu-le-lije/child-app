@@ -1,12 +1,15 @@
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import LevelMap, { LevelMapItem } from "../listenandfill/LevelMap";
 
 const Tracing = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<any[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -29,15 +32,15 @@ const Tracing = () => {
   );
 
   return (
-    <GameLayout title="Fidel Tracing" fullScreen>
+    <GameLayout title={t(language, "games.fidelTracing.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="Fidel Tracing"
-          guideTitle="How to Play"
-          guideText="Pick a level, listen to the sound, then trace the character carefully."
+          gameTitle={t(language, "games.fidelTracing.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.fidelTracing.guide")}
           levels={levelNodes}
           onPressLevel={(item) => router.push(`/(root)/tracing/${item.id}`)}
-          emptyMessage="No tracing levels available right now."
+          emptyMessage={t(language, "games.fidelTracing.empty")}
         />
       </View>
     </GameLayout>

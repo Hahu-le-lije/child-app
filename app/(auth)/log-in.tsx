@@ -3,7 +3,9 @@ import InputField from "@/components/InputField";
 import SafeAreaComponent from "@/components/SafeAreaComponent";
 import { images } from "@/const";
 import { AuthApiError, loginChild } from "@/services/api/auth.api";
+import { t } from "@/services/locales";
 import { useAuthStore } from "@/store/authStore";
+import { useLanguageStore } from "@/store/languageStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React from "react";
@@ -20,6 +22,7 @@ import {
 
 const Login = () => {
   const { login } = useAuthStore();
+  const language = useLanguageStore((state) => state.language);
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -35,8 +38,8 @@ const Login = () => {
       const message =
         error instanceof AuthApiError
           ? error.message
-          : "Check your name or secret code again!";
-      Alert.alert("Oops!", message);
+          : t(language, "auth.loginFallbackError");
+      Alert.alert(t(language, "auth.loginErrorTitle"), message);
     } finally {
       setLoading(false);
     }
@@ -61,16 +64,16 @@ const Login = () => {
                   resizeMode="contain"
                 />
               </View>
-              <Text style={styles.title}>Secret Entry</Text>
+              <Text style={styles.title}>{t(language, "auth.loginTitle")}</Text>
               <Text style={styles.subtitle}>
-                Enter your username and PIN!
+                {t(language, "auth.loginSubtitle")}
               </Text>
             </View>
 
             <View style={styles.formCard}>
               <InputField
-                label="Username"
-                placeholder="Enter your username..."
+                label={t(language, "auth.username")}
+                placeholder={t(language, "auth.usernamePlaceholder")}
                 autoCapitalize="none"
                 value={username}
                 onChangeText={setUsername}
@@ -78,8 +81,8 @@ const Login = () => {
               />
 
               <InputField
-                label="PIN"
-                placeholder="Enter your PIN..."
+                label={t(language, "auth.pin")}
+                placeholder={t(language, "auth.pinPlaceholder")}
                 keyboardType="number-pad"
                 secureTextEntry
                 value={password}
@@ -88,7 +91,7 @@ const Login = () => {
               />
 
               <CustomButton
-                title={loading ? "Opening Door..." : "LET'S PLAY!"}
+                title={loading ? t(language, "auth.openingDoor") : t(language, "auth.letsPlay")}
                 onPress={handleLogin}
                 containerStyle={styles.button}
                 textStyle={styles.buttonText}

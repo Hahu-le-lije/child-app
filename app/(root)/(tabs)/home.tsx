@@ -118,13 +118,23 @@ const Home = () => {
   const continueGame =
     gamesWithProgress.find((game) => game.route === continueRoute) ?? null;
   const suggestedGame = continueGame ?? gamesWithProgress[0];
+  const gameTitleFor = (game: (typeof gamesWithProgress)[number]) => {
+    const key = game.titleKey ?? "";
+    const localized = key ? t(language, key) : "";
+    return localized && localized !== key ? localized : game.title;
+  };
   const continueTitle = continueGame
-    ? `Continue ${continueGame.title}`
-    : "Start your first mission";
+    ? t(language, "home.continueTitle", { title: gameTitleFor(continueGame) })
+    : t(language, "home.firstMissionTitle");
   const continueSubtitle = continueGame
-    ? `Last score ${recentSession?.score ?? 0}% • Best ${continueGame.bestScore}%`
-    : "Play any game once and your progress will appear here.";
-  const continueButtonText = continueGame ? "Resume" : "Start";
+    ? t(language, "home.continueSubtitle", {
+        score: recentSession?.score ?? 0,
+        bestScore: continueGame.bestScore,
+      })
+    : t(language, "home.firstMissionSubtitle");
+  const continueButtonText = continueGame
+    ? t(language, "home.resume")
+    : t(language, "home.start");
 
   return (
     <SafeAreaComponent style={styles.container}>
@@ -161,17 +171,17 @@ const Home = () => {
           <View style={styles.statPill}>
             <MaterialCommunityIcons name="fire" size={18} color="#FF7A59" />
             <Text style={styles.statNumber}>{stats.dayStreak}</Text>
-            <Text style={styles.statLabel}>day streak</Text>
+            <Text style={styles.statLabel}>{t(language, "home.dayStreak")}</Text>
           </View>
           <View style={styles.statPill}>
             <MaterialCommunityIcons name="controller" size={18} color="#7FD1FF" />
             <Text style={styles.statNumber}>{summary.totalSessions}</Text>
-            <Text style={styles.statLabel}>sessions</Text>
+            <Text style={styles.statLabel}>{t(language, "home.sessions")}</Text>
           </View>
           <View style={styles.statPill}>
             <MaterialCommunityIcons name="trophy" size={18} color="#FFD93D" />
             <Text style={styles.statNumber}>{summary.bestScore}%</Text>
-            <Text style={styles.statLabel}>best</Text>
+            <Text style={styles.statLabel}>{t(language, "home.best")}</Text>
           </View>
         </View>
 
@@ -183,7 +193,9 @@ const Home = () => {
           >
             <View style={styles.continueTextArea}>
               <Text style={styles.continueKicker}>
-                {continueGame ? "Pick up where you left off" : "Ready to play"}
+                {continueGame
+                  ? t(language, "home.continueKicker")
+                  : t(language, "home.readyKicker")}
               </Text>
               <Text style={styles.continueTitle}>{continueTitle}</Text>
               <Text style={styles.continueSubtitle}>{continueSubtitle}</Text>
@@ -232,12 +244,15 @@ const Home = () => {
 
               <View style={styles.gameInfo}>
                 <Text style={styles.gameTitle} numberOfLines={1}>
-                  {game.title}
+                  {gameTitleFor(game)}
                 </Text>
                 <Text style={styles.gameProgressText} numberOfLines={1}>
                   {game.sessions > 0
-                    ? `${game.sessions} plays • Best ${game.bestScore}%`
-                    : "Not started yet"}
+                    ? t(language, "home.playsSummary", {
+                        sessions: game.sessions,
+                        bestScore: game.bestScore,
+                      })
+                    : t(language, "home.notStarted")}
                 </Text>
 
                 <View style={styles.playTag}>

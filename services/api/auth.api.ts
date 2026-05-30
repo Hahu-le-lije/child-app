@@ -193,6 +193,7 @@ export async function loginChild(username: string, password: string): Promise<Lo
   }
 
   const raw = await readJson(res);
+  console.log("raw output from the back: ",raw);
   if (!res.ok) {
     const flat = flattenEnvelope(raw);
     const msg =

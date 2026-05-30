@@ -2,6 +2,8 @@ import React from "react";
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { playAudio } from "@/services/audioService";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 
 type Props = {
   uri?: string | null;
@@ -10,7 +12,9 @@ type Props = {
   onPlay?: () => void;
 };
 
-export default function AudioButton({ uri, label = "Play", style, onPlay }: Props) {
+export default function AudioButton({ uri, label, style, onPlay }: Props) {
+  const language = useLanguageStore((state) => state.language);
+
   return (
     <TouchableOpacity
       style={[styles.btn, style]}
@@ -22,7 +26,7 @@ export default function AudioButton({ uri, label = "Play", style, onPlay }: Prop
       activeOpacity={0.8}
     >
       <MaterialCommunityIcons name="volume-high" size={18} color="#fff" />
-      <Text style={styles.text}>{label}</Text>
+      <Text style={styles.text}>{label ?? t(language, "gameUi.play")}</Text>
     </TouchableOpacity>
   );
 }

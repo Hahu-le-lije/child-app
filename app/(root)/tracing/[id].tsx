@@ -30,6 +30,8 @@ import { getUser } from "@/services/db/authStorage";
 import { upsertGameSession } from "@/services/db/gameSession.service";
 import { scoreTracing } from "@/services/gaming/scoring.service";
 import { getGameContent } from "@/services/cms/gameContentService";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 
 const { width } = Dimensions.get("window");
 const CANVAS_SIZE = width - 32;
@@ -130,6 +132,7 @@ const FidelTracingScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const levelId = String(id ?? "");
+  const language = useLanguageStore((state) => state.language);
   const [questions, setQuestions] = useState<TraceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -208,7 +211,7 @@ const FidelTracingScreen = () => {
 
   const toggleAudio = async () => {
     if (!currentQuestion?.pronoucevoicelink) {
-      Alert.alert("No audio", "This letter has no voice clip yet.");
+      Alert.alert(t(language, "gameUi.noAudioTitle"), t(language, "gameUi.noAudioMessage"));
       return;
     }
     try {
@@ -223,7 +226,7 @@ const FidelTracingScreen = () => {
         if (status.isLoaded && !status.isPlaying) setIsPlaying(false);
       });
     } catch {
-      Alert.alert("Error", "Audio playback failed");
+      Alert.alert(t(language, "gameUi.errorTitle"), t(language, "gameUi.audioPlaybackFailed"));
     }
   };
 
@@ -301,17 +304,23 @@ const FidelTracingScreen = () => {
     })();
 
     Alert.alert(
-      "Result",
-      `Score: ${stats.score}/100\nCoverage: ${stats.accuracy}%`,
+      t(language, "gameUi.resultTitle"),
+      t(language, "gameUi.scoreCoverage", {
+        score: stats.score,
+        coverage: stats.accuracy,
+      }),
       [
         {
-          text: currentIdx < questions.length - 1 ? "Next letter" : "Finish",
+          text:
+            currentIdx < questions.length - 1
+              ? t(language, "gameUi.nextLetter")
+              : t(language, "gameUi.finish"),
           onPress: () => {
             if (currentIdx < questions.length - 1) {
               setCurrentIdx((prev) => prev + 1);
             } else {
-              Alert.alert("Done!", "Level complete 🎉", [
-                { text: "OK", onPress: () => router.back() },
+              Alert.alert(t(language, "gameUi.doneTitle"), t(language, "gameUi.levelComplete"), [
+                { text: t(language, "gameUi.ok"), onPress: () => router.back() },
               ]);
             }
           },
@@ -324,7 +333,7 @@ const FidelTracingScreen = () => {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading letters…</Text>
+        <Text style={styles.loadingText}>{t(language, "gameUi.loadingLetters")}</Text>
       </View>
     );
   }
@@ -333,8 +342,7 @@ const FidelTracingScreen = () => {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.loadingText}>
-          No tracing images for this level. Download a fidel tracing pack from
-          Content.
+          {t(language, "gameUi.noTracingImages")}
         </Text>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.backBtn}>← Back</Text>
@@ -347,7 +355,7 @@ const FidelTracingScreen = () => {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading outline…</Text>
+        <Text style={styles.loadingText}>{t(language, "gameUi.loadingOutline")}</Text>
       </View>
     );
   }
@@ -398,7 +406,7 @@ const FidelTracingScreen = () => {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.doneBtn} onPress={handleNext}>
-          <Text style={styles.btnText}>Finish</Text>
+          <Text style={styles.btnText}>{t(language, "gameUi.finish")}</Text>
         </TouchableOpacity>
       </View>
     </GestureHandlerRootView>

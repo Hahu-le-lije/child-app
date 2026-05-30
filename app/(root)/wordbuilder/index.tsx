@@ -3,10 +3,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import GameLayout from "@/components/GameLayout";
 import { getLevelsForGame } from "@/services/cms/gameContentService";
 import { getCompletedLevelIds } from "@/services/db/levelProgress.service";
+import { t } from "@/services/locales";
+import { useLanguageStore } from "@/store/languageStore";
 import { router } from "expo-router";
 import LevelMap, { LevelMapItem } from "../listenandfill/LevelMap";
 
 const WordBuilder = () => {
+  const language = useLanguageStore((state) => state.language);
   const [levels, setLevels] = useState<any[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
@@ -36,15 +39,15 @@ const WordBuilder = () => {
   );
 
   return (
-    <GameLayout title="Word Builder" fullScreen>
+    <GameLayout title={t(language, "games.wordBuilder.title")} fullScreen>
       <View style={styles.container}>
         <LevelMap
-          gameTitle="Word Builder"
-          guideTitle="How to Play"
-          guideText="Pick a level, connect letters, and discover all the hidden words."
+          gameTitle={t(language, "games.wordBuilder.title")}
+          guideTitle={t(language, "games.howToPlay")}
+          guideText={t(language, "games.wordBuilder.guide")}
           levels={levelNodes}
           onPressLevel={(item) => router.push(`/(root)/wordbuilder/${item.id}`)}
-          emptyMessage="No word-builder levels available right now."
+          emptyMessage={t(language, "games.wordBuilder.empty")}
         />
       </View>
     </GameLayout>
