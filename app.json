@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/hahu_logo.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.izorium.hahuchild"
     },
     "web": {
       "output": "static",
