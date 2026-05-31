@@ -3,6 +3,7 @@ import type {
   ContentPackListItem,
   ContentPackManifest,
 } from "@/types/content";
+import { normalizePackGameType } from "@/services/cms/packImportService";
 import { getAccessToken } from "@/services/db/authStorage";
 
 export type { ContentPack, ContentPackListItem, ContentPackManifest };
@@ -28,12 +29,20 @@ function contentUrl(restPath: string): string {
   return `${CMS_BASE_URL}${CONTENT_ROOT}${path}`;
 }
 
+function assertContentApiConfigured(): void {
+  if (CMS_BASE_URL) return;
+  throw new ContentApiError(
+    "Content server URL is not configured. Set EXPO_PUBLIC_CONTENT_API in your .env (Expo Go) or EAS build profile (APK).",
+  );
+}
+
 async function contentFetch(
   restPath: string,
   networkError: string,
 ): Promise<{ res: Response; raw: unknown }> {
+  assertContentApiConfigured();
+
   const token = (await getAccessToken())?.trim();
-  console.log("token to send for cms: ",token)
 
   if (!token) {
     throw new ContentApiError("Log in to load content packs.");
@@ -46,8 +55,8 @@ async function contentFetch(
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
-        contentType: "application/json",
-        Accept:"application/json"
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
     });
   } catch {
@@ -205,7 +214,14 @@ export async function fetchContentPackList(): Promise<ContentPackListItem[]> {
     if (!slug) continue;
 
     const title = pickString(item, "title", "name") ?? slug;
-    const gameType = pickString(item, "gameType", "game_type", "type");
+    const gameTypeId = pickNumber(item, "game_type_id", "gameTypeId");
+    const gameTypeRaw =
+      pickString(item, "gameType", "game_type", "type") ??
+      (gameTypeId != null ? String(gameTypeId) : undefined);
+    const normalizedGame = normalizePackGameType(
+      gameTypeId ?? gameTypeRaw ?? null,
+    );
+    const gameType = gameTypeRaw ?? normalizedGame ?? undefined;
     const thumbnail = pickString(
       item,
       "thumbnail",
@@ -224,6 +240,7 @@ export async function fetchContentPackList(): Promise<ContentPackListItem[]> {
       description: pickString(item, "description"),
       game_type: gameType,
       gameType,
+      game_type_id: gameTypeId,
       type: pickString(item, "type"),
       thumbnail_url: thumbnail,
       thumbnail,
@@ -282,7 +299,7 @@ export async function fetchPackManifest(
     `/packs/${enc}/manifest`,
     "Network error loading manifest",
   );
-
+  console.log("Raw manifest response:", raw);
   assertOk(res, raw, "Manifest failed");
 
   return normalizePackManifest(raw, slug);
@@ -295,6 +312,7 @@ export async function fetchPackDownload(slug: string): Promise<unknown> {
     `/packs/${enc}/download`,
     "Network error downloading pack",
   );
+  console.log("Raw download response:", raw);
 
   assertOk(res, raw, "Download failed");
 

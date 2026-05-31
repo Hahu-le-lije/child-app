@@ -21,6 +21,13 @@ const gameUi = {
   levelTitle: "Level {id}",
   microphonePermission: "Microphone permission required!",
   recordingTooShort: "Recording is too short. Please hold and speak a little longer.",
+  speakupHoldToRecord: "Hold the button and say the word",
+  speakupRecording: "Recording… speak now!",
+  speakupReleaseToSend: "Release to send",
+  speakupProcessing: "Checking your pronunciation…",
+  speakupTapSpeaker: "Tap the speaker to hear the word first",
+  speakupServiceUnavailable:
+    "The pronunciation service is unavailable. Your recording was sent, but the server could not score it.",
   play: "Play",
   correct: "Correct!",
   matchTitle: "Match {id}",

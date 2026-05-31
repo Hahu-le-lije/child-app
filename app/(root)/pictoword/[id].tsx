@@ -31,24 +31,30 @@ type PictureToWordJson = {
   contents: { "picture to word": { levels: Record<string, JsonLevel> } };
 };
 
-type Question = {
-  id: string;
-  questiontext: string;
-  images: JsonImage[];
-  correctImageId: string;
-};
 
 type PictureContentRow = {
   id?: string;
   questiontext?: string;
   images?: JsonImage[];
   correctImageId?: string;
+  promptImage?: string;
+  choices?: string[];
+  correctChoice?: string;
+};
+
+type PictureQuestion = {
+  id: string;
+  questiontext: string;
+  images: JsonImage[];
+  correctImageId: string;
+  promptImage?: string;
+  textChoices?: string[];
 };
 
 type PictureLevel = {
   id: string;
   title: string;
-  questions: Question[];
+  questions: PictureQuestion[];
 };
 
 type SessionTrack = {
@@ -383,13 +389,29 @@ const PicToWordGame = () => {
         const rows = (await getGameContent("picture", levelId)) as PictureContentRow[];
         if (!active) return;
         const questions = rows
-          .filter((row) => Array.isArray(row.images) && row.images.length > 0)
-          .map((row, index) => ({
-            id: String(row.id ?? `question_${index + 1}`),
-            questiontext: String(row.questiontext ?? ""),
-            images: row.images ?? [],
-            correctImageId: String(row.correctImageId ?? ""),
-          }));
+          .map((row, index) => {
+            const id = String(row.id ?? `question_${index + 1}`);
+            if (row.promptImage && Array.isArray(row.choices) && row.choices.length > 0) {
+              return {
+                id,
+                questiontext: String(row.questiontext ?? ""),
+                promptImage: row.promptImage,
+                textChoices: row.choices.map(String),
+                images: [],
+                correctImageId: String(row.correctChoice ?? row.choices[0] ?? ""),
+              };
+            }
+            if (!Array.isArray(row.images) || row.images.length === 0) {
+              return null;
+            }
+            return {
+              id,
+              questiontext: String(row.questiontext ?? ""),
+              images: row.images ?? [],
+              correctImageId: String(row.correctImageId ?? ""),
+            };
+          })
+          .filter((q): q is PictureQuestion => q != null);
         setLevel({
           id: levelId,
           title: t(language, "gameUi.pictureLevelTitle", {
@@ -484,13 +506,13 @@ const PicToWordGame = () => {
     savedRef.current = false;
   };
 
-  const handleSelect = (imageId: string) => {
+  const handleSelect = (choiceId: string) => {
     if (!currentQuestion || feedback.show) return;
 
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
-    const correct = imageId === currentQuestion.correctImageId;
+    const correct = choiceId === currentQuestion.correctImageId;
 
-    setSelectedImageId(imageId);
+    setSelectedImageId(choiceId);
 
     if (correct) {
       setSession((prev) => ({
@@ -707,36 +729,70 @@ const PicToWordGame = () => {
           </View>
         </LinearGradient>
 
-        <View style={styles.promptCard}>
-          <Text style={styles.promptLabel}>{t(language, "gameUi.tapImageFor")}</Text>
-          <Text style={styles.promptWord}>{currentQuestion.questiontext}</Text>
-        </View>
+        {currentQuestion.promptImage ? (
+          <View style={styles.promptImageWrap}>
+            <Image
+              source={{ uri: currentQuestion.promptImage }}
+              style={styles.promptImage}
+              resizeMode="contain"
+            />
+          </View>
+        ) : (
+          <View style={styles.promptCard}>
+            <Text style={styles.promptLabel}>{t(language, "gameUi.tapImageFor")}</Text>
+            <Text style={styles.promptWord}>{currentQuestion.questiontext}</Text>
+          </View>
+        )}
 
-        <View style={styles.grid}>
-          {currentQuestion.images.map((img) => {
-            const selected = selectedImageId === img.id;
-            const correct = img.id === currentQuestion.correctImageId;
+        {currentQuestion.textChoices && currentQuestion.textChoices.length > 0 ? (
+          <View style={styles.textChoiceGrid}>
+            {currentQuestion.textChoices.map((choice) => {
+              const selected = selectedImageId === choice;
+              const correct = choice === currentQuestion.correctImageId;
+              return (
+                <TouchableOpacity
+                  key={choice}
+                  style={[
+                    styles.textChoiceCard,
+                    feedback.show && selected && correct && styles.optionCorrect,
+                    feedback.show && selected && !correct && styles.optionWrong,
+                  ]}
+                  onPress={() => handleSelect(choice)}
+                  disabled={feedback.show}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.textChoiceLabel}>{choice}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {currentQuestion.images.map((img) => {
+              const selected = selectedImageId === img.id;
+              const correct = img.id === currentQuestion.correctImageId;
 
-            return (
-              <TouchableOpacity
-                key={img.id}
-                style={[
-                  styles.optionCard,
-                  feedback.show && selected && correct && styles.optionCorrect,
-                  feedback.show && selected && !correct && styles.optionWrong,
-                ]}
-                onPress={() => handleSelect(img.id)}
-                disabled={feedback.show}
-                activeOpacity={0.9}
-              >
-                <Image
-                  source={{ uri: img.imagelink }}
-                  style={styles.optionImage}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+              return (
+                <TouchableOpacity
+                  key={img.id}
+                  style={[
+                    styles.optionCard,
+                    feedback.show && selected && correct && styles.optionCorrect,
+                    feedback.show && selected && !correct && styles.optionWrong,
+                  ]}
+                  onPress={() => handleSelect(img.id)}
+                  disabled={feedback.show}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={{ uri: img.imagelink }}
+                    style={styles.optionImage}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {feedback.show && (
           <View
@@ -826,6 +882,37 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Medium",
   },
   promptWord: { color: "#fff", fontSize: 30, fontFamily: "Poppins-Bold" },
+  promptImageWrap: {
+    backgroundColor: "#2F365A",
+    borderRadius: 18,
+    alignItems: "center",
+    padding: 12,
+    marginBottom: 12,
+    minHeight: 180,
+  },
+  promptImage: { width: "100%", height: 200 },
+  textChoiceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  textChoiceCard: {
+    width: optionSize,
+    backgroundColor: "#2D355A",
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 8,
+    borderWidth: 2,
+    borderColor: "transparent",
+    alignItems: "center",
+  },
+  textChoiceLabel: {
+    color: "#fff",
+    fontSize: 22,
+    fontFamily: "Abyssinica_SIL",
+    textAlign: "center",
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

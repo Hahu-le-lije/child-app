@@ -1,126 +1,119 @@
+//1. Fidel Tracing (game_type_id: 1)
 {
-    "contents":{
-        "story":{
-         "stories":{
-           "storyid":{
-            
-            "title":"",
-            "pagecount":0,
-            "page1":{ 
-                "storytext":"",
-                "keywords":[],
-                "imagelink":""
-            },
-             "page2":{ 
-                "storytext":"",
-                "keywords":[],
-                "imagelink":""
-            },
-            
-            "questions":{
-                "question1":{
-                    "text":"",
-                    "choices":[],
-                    "correctanswer":""
-                }
-            }
-           }
+  "fidel_tracing": {
+    "levels": {
+      "1": {
+        "question1": {
+          "word": "ሀ",
+          "voice": "https://cdn.example.com/audio/ha.mp3",
+          "image": "https://cdn.example.com/images/ha.png"
         }
-           
-        },
-        "picture to word":{
-            "levels":{
-            "levelid":{
-                "question1":{
-                    "questiontext":"",
-                    "images":[
-                        {
-                            "id":"",
-                            "imagelink":""
-                        },
-                        {
-                            "id":"",
-                            "imagelink":""
-                        }
-                    ],
-                    "correctImageId":""
-                }
-            }
-
+      },
+      "2": {
+        "question1": {
+          "word": "ሁ",
+          "voice": "https://cdn.example.com/audio/hu.mp3",
+          "image": "https://cdn.example.com/images/hu.png"
         }
-    },
-    "fidel tracing":{
-        "levels":{
-            "levelid":{
-                "question1":{
-                "lettertotrace":"",
-                "lettertoraceimagelink(outline version)":"",
-                "pronoucevoicelink":""
-                },
-                "question2":{
-                "lettertotrace":"",
-                "pronoucevoicelink":""
-                }
-            }
-        }
-    },
-    "word builder":{
-        "levels":{
-            "levelid":{
-                "letters":[],
-                "corrects words":[
-                    {"wordid":"",
-                    "wordtext":""
-                }
-                ],
-                "hints for the corrects words":[
-                    {"wordid":"",
-                    "hinttext":""}
-                ]
-
-            }
-        }
-    },
-    "fill in the blank":{
-        "levels":{
-            "levelid":{
-                "full paragraph":"",
-                "blank space paragraph":"",
-                "voice reading the full paragraph link":"",
-                "choices":[]
-            }
-        }
-    },
-    "pronouncation":{
-        "levels":{
-
-            "levelid":{
-                "question1":{
-                "word":"",
-                "correct voice pronouncation link ":"",
-                "image of the word link":""
-            }}
-        }
-    },
-    "voice/fidel to word game":{
-        "levels":{
-            "levelid":{
-
-                "question1":{
-                "voiceof the word link":"",
-                "word choices":[
-                    {
-                    "wordid":"",
-                    "wordtext":""
-                }
-
-                ],
-                "correctwordid":""
-            }
-
-            }
-        }
+      }
     }
-    }
+  }
+}
 
+//2. Voice/Fidel to Word Game (game_type_id: 2)
+{
+  "voice_to_word": {
+    "levels": {
+      "1": {
+        "question1": {
+          "voice": "https://cdn.example.com/audio/word1.mp3",
+          "choices": ["ሀ", "ሁ", "ሂ"],
+          "correct_choice": 0
+        }
+      }
+    }
+  }
+}
+
+////3. Picture to Word (game_type_id: 3)
+{
+  "picture_to_word": {
+    "levels": {
+      "1": {
+        "question1": {
+          "image": "https://cdn.example.com/images/apple.png",
+          "choices": ["ፖም", "ሀ", "ቦ"],
+          "correct_choice": 0
+        }
+      }
+    }
+  }
+}
+
+//4. Word Builder (game_type_id: 4)
+{
+  "word_builder": {
+    "levels": {
+      "1": {
+        "question1": {
+          "letters": ["ሀ", "ሁ", "ሂ"],
+          "target_word": "ሀሁ"
+        }
+      }
+    }
+  }
+}
+
+//5. Fill in the Blank (game_type_id: 5)
+{
+  "fill_in_the_blank": {
+    "levels": {
+      "1": {
+        "question1": {
+          "sentence": "እኔ ____ ነኝ",
+          "choices": ["ልጅ", "አባት", "እናት"],
+          "correct_choice": 0
+        }
+      }
+    }
+  }
+}
+
+//6. Pronunciation (game_type_id: 6)
+{
+  "pronunciation": {
+    "levels": {
+      "1": {
+        "question1": {
+          "word": "ሀ",
+          "voice": "https://cdn.example.com/audio/ha.mp3",
+          "image": "https://cdn.example.com/images/ha.png"
+        }
+      }
+    }
+  }
+}
+
+///7. Story Quiz (game_type_id: 7)
+{
+  "story_quiz": {
+    "stories": [
+      {
+        "title": "የአንበሳው ታሪክ",
+        "pages": [
+          {
+            "text": "አንበሳው በዱር ይኖራል...",
+            "image": "https://cdn.example.com/images/lion.png"
+          }
+        ],
+        "questions": [
+          {
+            "question": "አንበሳው የት ይኖራል?",
+            "choices": ["በዱር", "በከተማ", "በቤት"],
+            "correct_choice": 0
+          }
+        ]
+      }
+    ]
+  }
 }

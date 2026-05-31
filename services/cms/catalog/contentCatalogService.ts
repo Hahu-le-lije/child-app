@@ -13,6 +13,24 @@ type CatalogCacheFile = {
   packs: ContentPack[];
 };
 
+function normalizeCachedPack(pack: ContentPack): ContentPack | null {
+  const slug =
+    pack.slug?.trim() ||
+    (typeof pack.id === "string" ? pack.id.trim() : "") ||
+    "";
+  if (!slug) return null;
+  return { ...pack, slug };
+}
+
+function normalizeCachedPacks(packs: ContentPack[]): ContentPack[] {
+  const normalized: ContentPack[] = [];
+  for (const pack of packs) {
+    const row = normalizeCachedPack(pack);
+    if (row) normalized.push(row);
+  }
+  return normalized;
+}
+
 async function readCache(): Promise<CatalogCacheFile | null> {
   try {
     const info = await FileSystem.getInfoAsync(CACHE_PATH);
@@ -45,7 +63,7 @@ export async function loadContentCatalog(options?: {
   const cached = !force ? await readCache() : null;
 
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return { packs: cached.packs, fromCache: true };
+    return { packs: normalizeCachedPacks(cached.packs), fromCache: true };
   }
 
   try {
@@ -54,7 +72,7 @@ export async function loadContentCatalog(options?: {
     return { packs, fromCache: false };
   } catch (error) {
     if (cached) {
-      return { packs: cached.packs, fromCache: true };
+      return { packs: normalizeCachedPacks(cached.packs), fromCache: true };
     }
     throw error;
   }

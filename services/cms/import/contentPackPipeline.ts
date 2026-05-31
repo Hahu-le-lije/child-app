@@ -42,7 +42,11 @@ export async function installContentPack(
 ): Promise<PackInstallResult> {
   const slug = pack.slug.trim();
   const game = normalizePackGameType(
-    pack.game_type ?? pack.gameType ?? pack.type ?? null,
+    pack.game_type ??
+      pack.gameType ??
+      pack.type ??
+      (pack as { game_type_id?: number }).game_type_id ??
+      null,
   );
   if (!game) {
     throw new PackInstallError(

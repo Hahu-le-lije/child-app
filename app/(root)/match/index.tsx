@@ -25,9 +25,12 @@ const Match = () => {
     let active = true;
 
     (async () => {
-      const rows = await getLevelsForGame("matching");
+      const [matchingRows, voiceRows] = await Promise.all([
+        getLevelsForGame("matching"),
+        getLevelsForGame("voice"),
+      ]);
       if (!active) return;
-      setLevels(rows as MatchLevel[]);
+      setLevels([...matchingRows, ...voiceRows] as MatchLevel[]);
       setCompletedIds(getCompletedLevelIds(["voice_word_match"]));
     })();
 

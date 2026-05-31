@@ -34,6 +34,7 @@ import {
 import {
   asStringArray,
   iterateLevelQuestions,
+  mergePackContents,
   pickRemoteUrl,
   resolveCorrectChoice,
 } from "@/services/cms/payload/payloadHelpers";
@@ -42,18 +43,25 @@ function randomKey(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function extractContents(payload: unknown): Record<string, unknown> {
-  if (!payload || typeof payload !== "object") return {};
-  const o = payload as Record<string, unknown>;
-  const inner = o.contents;
-  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-    return inner as Record<string, unknown>;
-  }
-  return o;
-}
+const GAME_TYPE_ID_MAP: Record<number, GameTypeKey> = {
+  1: "tracing",
+  2: "voice",
+  3: "picture",
+  4: "word_builder",
+  5: "fill",
+  6: "pronunciation",
+  7: "story",
+};
 
 /** Map API/catalog strings to importer keys used by SQLite + game routes. */
-export function normalizePackGameType(raw?: string | null): GameTypeKey | null {
+export function normalizePackGameType(
+  raw?: string | number | null,
+): GameTypeKey | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const fromId = GAME_TYPE_ID_MAP[raw];
+    if (fromId) return fromId;
+  }
+
   const k = String(raw ?? "")
     .toLowerCase()
     .trim()
@@ -63,6 +71,7 @@ export function normalizePackGameType(raw?: string | null): GameTypeKey | null {
     story: "story",
     story_quiz: "story",
     storyquiz: "story",
+    story_quiz_pack: "story",
     quiz: "story",
     tracing: "tracing",
     fidel_tracing: "tracing",
@@ -104,6 +113,7 @@ async function importStories(
 
   const storiesArray = quizBlock?.stories;
   if (Array.isArray(storiesArray) && storiesArray.length > 0) {
+    const storyLevelId = packScopedId(packSlug, "story_quiz");
     for (let i = 0; i < storiesArray.length; i++) {
       const story = storiesArray[i] as Record<string, unknown>;
       const sid = packScopedId(packSlug, `story_${i}`);
@@ -123,6 +133,7 @@ async function importStories(
         title: String(story.title ?? `Story ${i + 1}`),
         pagecount: pageList.length,
         thumbnail_path: thumbnailPath,
+        level_id: storyLevelId,
       });
 
       for (let p = 0; p < pageList.length; p++) {
@@ -262,7 +273,11 @@ async function importPicture(
         );
         const rowId = insertPictureQuestion(childId, {
           level_id: lid,
-          text: String(q.question ?? q.questiontext ?? "Choose the word"),
+          text: String(
+            q.question ??
+              q.questiontext ??
+              "Pick the word that matches the picture",
+          ),
           correct_image_id: correctId,
         });
         insertPictureImage(childId, {
@@ -471,11 +486,14 @@ async function importFill(
         const audioPath = audioUrl
           ? await downloadPackAsset(audioUrl, childId, packSlug, "audio/fill")
           : "";
+        const blankParagraph = sentence.includes("____")
+          ? sentence
+          : sentence.replace(correct, "____").trim() || `${sentence} ____`;
 
         insertFillLevel(childId, {
           id: lid,
           full: sentence,
-          blank: sentence,
+          blank: blankParagraph,
           correct_answer: correct,
           audio: audioPath,
         });
@@ -899,7 +917,7 @@ export async function importPackPayload(
     payload && typeof payload === "object"
       ? (payload as Record<string, unknown>)
       : {};
-  const contents = extractContents(payload);
+  const contents = mergePackContents(payload);
   clearPackGameData(childId, packSlug);
 
   db.execSync("BEGIN IMMEDIATE");

@@ -9,10 +9,28 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+       "env": {
+        "EXPO_PUBLIC_API_CHILD":"https://child-service-313367232166.europe-west1.run.app",
+
+      "EXPO_PUBLIC_GAMING_API_URL":"https://gaming-service-313367232166.europe-west1.run.app",
+
+"EXPO_PUBLIC_CONTENT_API":"https://cms-service-313367232166.europe-west1.run.app",
+
+"EXPO_PUBLIC_SYNC_API":"https://sync-service-313367232166.europe-west1.run.app",
+
+"EXPO_PUBLIC_CONTENT_ROOT":"/api/content"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_CHILD": "https://child-service-313367232166.europe-west1.run.app",
+        "EXPO_PUBLIC_GAMING_API_URL": "https://gaming-service-313367232166.europe-west1.run.app",
+        "EXPO_PUBLIC_CONTENT_API": "https://cms-service-313367232166.europe-west1.run.app",
+        "EXPO_PUBLIC_SYNC_API": "https://sync-service-313367232166.europe-west1.run.app",
+        "EXPO_PUBLIC_CONTENT_ROOT": "/api/content"
+      }
     }
   },
   "submit": {

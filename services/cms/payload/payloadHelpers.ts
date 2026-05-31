@@ -1,5 +1,78 @@
 /** Shared parsing for CMS level/question payloads (v1 legacy + v2 shapes). */
 
+const ROOT_META_KEYS = new Set([
+  "contents",
+  "meta",
+  "schema_version",
+  "version",
+  "checksum",
+  "id",
+  "slug",
+  "title",
+  "gameType",
+  "game_type",
+  "game_type_id",
+  "publishedAt",
+  "published_at",
+  "downloadUrl",
+  "download_url",
+  "manifestUrl",
+  "manifest_url",
+  "sizeBytes",
+  "size_bytes",
+  "minAppVersion",
+  "min_app_version",
+]);
+
+/** True when value looks like a CMS game block (`{ levels }` or `{ stories }`). */
+export function isGameContentBlock(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const o = value as Record<string, unknown>;
+  return (
+    ("levels" in o && typeof o.levels === "object") ||
+    ("stories" in o && Array.isArray(o.stories))
+  );
+}
+
+/**
+ * Unwrap `contents` and merge game blocks that sit at the download JSON root
+ * (e.g. `{ "fidel_tracing": { "levels": … } }`).
+ */
+export function mergePackContents(payload: unknown): Record<string, unknown> {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return {};
+  }
+
+  const root = payload as Record<string, unknown>;
+  const merged: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(root)) {
+    if (ROOT_META_KEYS.has(key)) continue;
+    if (isGameContentBlock(value)) {
+      merged[key] = value;
+    }
+  }
+
+  const inner = root.contents;
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    for (const [key, value] of Object.entries(inner as Record<string, unknown>)) {
+      if (isGameContentBlock(value)) {
+        merged[key] = value;
+      }
+    }
+  }
+
+  if (typeof root.version === "string") merged.version = root.version;
+  if (typeof root.checksum === "string") merged.checksum = root.checksum;
+
+  return merged;
+}
+
+/** @deprecated Use mergePackContents — kept for callers that only need inner unwrap. */
+export function extractContents(payload: unknown): Record<string, unknown> {
+  return mergePackContents(payload);
+}
+
 export function resolveCorrectChoice(
   q: Record<string, unknown>,
   choices: string[],

@@ -35,13 +35,46 @@ function normalizeLanguage(language: string): string {
   return "english";
 }
 
+export type SpeechScoreResult = {
+  success?: boolean;
+  score: number;
+  heard?: string;
+  expected?: string;
+  error?: string;
+};
+
+async function readSpeechErrorMessage(res: Response): Promise<string> {
+  const fallback = `Failed to score pronunciation (${res.status})`;
+  try {
+    const errorData = (await res.json()) as Record<string, unknown>;
+    const msg = errorData?.error ?? errorData?.message;
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+  } catch {
+    try {
+      const text = await res.text();
+      if (text.trim()) return text.trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (res.status === 500) {
+    return "The pronunciation service is unavailable. Ask your backend team to check the gaming service logs and HUG_FACE API key.";
+  }
+  return fallback;
+}
+
 export const audioPronouncation = async (
   audioUri: string,
   targetWord: string,
-) => {
+): Promise<SpeechScoreResult> => {
   const base = getGamingBaseUrl();
   if (!base)
     throw new Error("Set EXPO_PUBLIC_GAMING_API_URL (or EXPO_PUBLIC_API_URL)");
+
+  const trimmedWord = targetWord.trim();
+  if (!trimmedWord) {
+    throw new Error("Target word is missing.");
+  }
 
   try {
     const info = await getInfoAsync(audioUri);
@@ -62,7 +95,7 @@ export const audioPronouncation = async (
 
     const sendWithField = async (fieldName: "audio" | "file") => {
       const formData = new FormData();
-      formData.append("targetWord", targetWord.trim());
+      formData.append("targetWord", trimmedWord);
       formData.append(fieldName, buildFilePart());
       return fetch(`${base}/game/speech`, {
         method: "POST",
@@ -74,43 +107,26 @@ export const audioPronouncation = async (
     };
 
     let res = await sendWithField("audio");
-    if (!res.ok) {
-      // Fallback for backends configured as upload.single("file")
-      let retryNeeded = false;
-      try {
-        const errorData = (await res.json()) as any;
-        const errMsg = String(
-          errorData?.error || errorData?.message || "",
-        ).toLowerCase();
-        retryNeeded =
-          errMsg.includes("no audio") ||
-          errMsg.includes("unexpected field") ||
-          errMsg.includes("no file");
-      } catch {
-        retryNeeded = false;
-      }
-      if (retryNeeded) {
+    if (!res.ok && res.status === 400) {
+      const errMsg = (await readSpeechErrorMessage(res.clone())).toLowerCase();
+      if (
+        errMsg.includes("no audio") ||
+        errMsg.includes("unexpected field") ||
+        errMsg.includes("no file")
+      ) {
         res = await sendWithField("file");
       }
     }
 
     if (!res.ok) {
-      let msg = `Failed to score pronunciation (${res.status})`;
-      try {
-        const errorData = (await res.json()) as any;
-        msg = errorData?.error || errorData?.message || msg;
-      } catch {
-        try {
-          const fallback = await res.text();
-          if (fallback) msg = fallback;
-        } catch {
-          // ignore
-        }
-      }
-      throw new Error(msg);
+      throw new Error(await readSpeechErrorMessage(res));
     }
 
-    return await res.json();
+    const data = (await res.json()) as SpeechScoreResult;
+    if (typeof data.score !== "number" || Number.isNaN(data.score)) {
+      throw new Error("Speech service returned an invalid score.");
+    }
+    return data;
   } catch (error) {
     console.log("error in sending audio data ", error);
     throw error;

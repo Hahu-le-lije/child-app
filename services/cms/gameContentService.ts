@@ -27,6 +27,13 @@ function emptyLevels() {
   }>;
 }
 
+/** `packSlug__level__question1` → `packSlug__level` for level map screens. */
+function groupedPackLevelId(rawId: string): string {
+  const parts = rawId.split("__");
+  if (parts.length >= 3) return `${parts[0]}__${parts[1]}`;
+  return rawId;
+}
+
 export async function getLevelsForGame(game: GameTypeKey) {
   const childId = await resolveChildId();
   if (!childId) return emptyLevels();
@@ -107,15 +114,19 @@ export async function getLevelsForGame(game: GameTypeKey) {
     }
     case "fill": {
       const rows = Q.getFillLevels(childId) as Array<Record<string, unknown>>;
-      return rows
-        .filter((r) => Q.getFillChoices(childId, String(r.id)).length > 0)
-        .map((r, i) => ({
-          id: String(r.id),
-          level_number: i + 1,
-          title: `Fill level ${i + 1}`,
-          description: "Fill in the blank",
-          difficulty: 1,
-        }));
+      const grouped = new Map<string, Record<string, unknown>>();
+      for (const r of rows) {
+        if (Q.getFillChoices(childId, String(r.id)).length === 0) continue;
+        const key = groupedPackLevelId(String(r.id));
+        if (!grouped.has(key)) grouped.set(key, r);
+      }
+      return Array.from(grouped.keys()).map((id, i) => ({
+        id,
+        level_number: i + 1,
+        title: `Fill level ${i + 1}`,
+        description: "Fill in the blank",
+        difficulty: 1,
+      }));
     }
     case "word_builder": {
       const rows = Q.getWordBuilderLevels(childId) as Array<
@@ -136,15 +147,18 @@ export async function getLevelsForGame(game: GameTypeKey) {
     }
     case "voice": {
       const rows = Q.getVoiceLevels(childId) as Array<Record<string, unknown>>;
-      return rows
-        .filter((r) => Q.getVoiceChoices(childId, String(r.id)).length > 0)
-        .map((r, i) => ({
-          id: String(r.id),
-          level_number: i + 1,
-          title: `Listen level ${i + 1}`,
-          description: "Voice to word",
-          difficulty: 1,
-        }));
+      const grouped = new Set<string>();
+      for (const r of rows) {
+        if (Q.getVoiceChoices(childId, String(r.id)).length === 0) continue;
+        grouped.add(groupedPackLevelId(String(r.id)));
+      }
+      return Array.from(grouped).map((id, i) => ({
+        id,
+        level_number: i + 1,
+        title: `Listen level ${i + 1}`,
+        description: "Voice to word",
+        difficulty: 1,
+      }));
     }
     default:
       return emptyLevels();
@@ -168,8 +182,11 @@ export async function getGameContent(
       return stories.map((s) => {
         const pages = Q.getStoryPages(childId, s.id) as Array<{
           story_text: string;
+          image_path?: string | null;
         }>;
         const content = pages.map((p) => p.story_text).join("\n\n");
+        const firstPageImage =
+          pages.find((p) => p.image_path?.trim())?.image_path ?? null;
         const qs = Q.getStoryQuestions(childId, s.id) as Array<{
           question_text: string;
           correct_answer: string;
@@ -186,7 +203,8 @@ export async function getGameContent(
           id: s.id,
           title: s.title,
           content,
-          thumbnail_url: s.thumbnail_path,
+          thumbnail_url: s.thumbnail_path ?? firstPageImage,
+          storyImage: firstPageImage ?? s.thumbnail_path,
           questions,
         };
       });
@@ -236,12 +254,16 @@ export async function getGameContent(
         const prompt = q.images.find((img) => img.id.endsWith("_prompt"));
         const choices = q.images.filter((img) => !img.id.endsWith("_prompt"));
         const textChoices = choices.filter((c) => !c.image_path);
-        if (textChoices.length > 0) {
+        if (textChoices.length > 0 || (prompt?.image_path && choices.length > 0)) {
+          const choiceTexts =
+            textChoices.length > 0
+              ? textChoices.map((c) => c.id)
+              : choices.map((c) => c.id);
           return {
             id: String(q.id),
             questiontext: q.question_text,
             promptImage: prompt?.image_path ?? "",
-            choices: textChoices.map((c) => c.id),
+            choices: choiceTexts,
             correctChoice: q.correct_image_id,
           };
         }

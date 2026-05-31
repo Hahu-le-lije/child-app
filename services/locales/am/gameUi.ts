@@ -21,6 +21,13 @@ const gameUi = {
   levelTitle: "ደረጃ {id}",
   microphonePermission: "የማይክሮፎን ፈቃድ ያስፈልጋል!",
   recordingTooShort: "ቀረጻው በጣም አጭር ነው። እባክዎ ይያዙና ትንሽ ተጨማሪ ይናገሩ።",
+  speakupHoldToRecord: "ቁልፉን ይያዙና ቃሉን ይናገሩ",
+  speakupRecording: "ቀረጻ ላይ… አሁን ይናገሩ!",
+  speakupReleaseToSend: "ለመላክ ይፈቱ",
+  speakupProcessing: "አጠራጣሮትዎን እንመረምራለን…",
+  speakupTapSpeaker: "ቃሉን ለመስማት የድምጽ ቁልፉን ይጫኑ",
+  speakupServiceUnavailable:
+    "የአጠራጣሮት አገልግሎት አይገኝም። ቀረጻዎ ተልኳል፣ ግን አገልጋዩ ውጤት ማስላት አልቻለም።",
   play: "አጫውት",
   correct: "ትክክል!",
   matchTitle: "ማዛመድ {id}",

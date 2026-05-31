@@ -5,6 +5,7 @@ export type ContentPack = {
   title: string;
   description?: string;
   game_type?: string;
+  game_type_id?: number;
   thumbnail_url?: string;
   size_mb?: number;
   is_active?: boolean;

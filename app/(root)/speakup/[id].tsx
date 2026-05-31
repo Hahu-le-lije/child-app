@@ -1,14 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
-import { COLORS,  FONTS,  } from '@/const';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Audio } from 'expo-av';
-import { useSpeechScoring } from '@/services/gaming/useSpeechScoring';
-import WordDetailSheet from '@/components/WordDetailSheet';
-import { useWordDetails } from '@/services/gaming/useWordDetails';
-import { useLanguageStore } from '@/store/languageStore';
-import { getGameContent } from '@/services/cms/gameContentService';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  Pressable,
+  StyleSheet,
+  SafeAreaView,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import { COLORS, FONTS } from "@/const";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { Audio } from "expo-av";
+import * as Haptics from "expo-haptics";
+import { useSpeechScoring } from "@/services/gaming/useSpeechScoring";
+import WordDetailSheet from "@/components/WordDetailSheet";
+import { useWordDetails } from "@/services/gaming/useWordDetails";
+import { useLanguageStore } from "@/store/languageStore";
+import { getGameContent } from "@/services/cms/gameContentService";
+import { t } from "@/services/locales";
 
 type PronunciationRow = {
   word: string;
@@ -20,13 +31,30 @@ const Speakup = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const levelId = String(id ?? "");
-  const [selectedWord, setSelectedWord] = React.useState<string | null>(null);
+  const language = useLanguageStore((state) => state.language);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [currentGame, setCurrentGame] = useState<PronunciationRow | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  const { recordForThreeSecondsAndScore, isAnalyzing, lastScore } = useSpeechScoring();
-  const { fetchExplanation, explanation, loading: detailsLoading, error, clearExplanation } = useWordDetails();
-  const language = useLanguageStore((state) => state.language);
+
+  const {
+    phase,
+    isRecording,
+    isProcessing,
+    isBusy,
+    recordingProgress,
+    maxRecordingMs,
+    beginRecording,
+    prepareRecording,
+    endRecording,
+    cancelRecording,
+    lastScore,
+  } = useSpeechScoring();
+
+  const { fetchExplanation, explanation, loading: detailsLoading, error, clearExplanation } =
+    useWordDetails();
+
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -48,8 +76,34 @@ const Speakup = () => {
     };
   }, [levelId]);
 
+  useEffect(() => {
+    if (isRecording) {
+      pulseLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.14,
+            duration: 450,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 450,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      pulseLoopRef.current.start();
+    } else {
+      pulseLoopRef.current?.stop();
+      pulseAnim.setValue(1);
+    }
+    return () => {
+      pulseLoopRef.current?.stop();
+    };
+  }, [isRecording, pulseAnim]);
+
   const playPronunciation = async () => {
-    if (!currentGame?.audioUrl) return;
+    if (!currentGame?.audioUrl || isBusy) return;
     try {
       const { sound } = await Audio.Sound.createAsync({ uri: currentGame.audioUrl });
       await sound.playAsync();
@@ -58,9 +112,17 @@ const Speakup = () => {
     }
   };
 
-  const handlePress = async () => {
-    if (!currentGame?.word) return;
-    await recordForThreeSecondsAndScore(currentGame.word, levelId);
+  const handleRecordPressIn = async () => {
+    if (!currentGame?.word || isBusy) return;
+    prepareRecording(currentGame.word, levelId);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await beginRecording();
+  };
+
+  const handleRecordPressOut = async () => {
+    if (!currentGame?.word || !isRecording) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await endRecording(currentGame.word, levelId);
   };
 
   const handleWordTap = async () => {
@@ -68,6 +130,23 @@ const Speakup = () => {
     setSelectedWord(currentGame.word);
     await fetchExplanation(currentGame.word, language);
   };
+
+  const instructionText = (() => {
+    if (isProcessing) return t(language, "gameUi.speakupProcessing");
+    if (isRecording) return t(language, "gameUi.speakupRecording");
+    return t(language, "gameUi.speakupHoldToRecord");
+  })();
+
+  const subInstructionText = isRecording
+    ? t(language, "gameUi.speakupReleaseToSend")
+    : !isProcessing
+      ? t(language, "gameUi.speakupTapSpeaker")
+      : "";
+
+  const secondsLeft = Math.max(
+    0,
+    Math.ceil((maxRecordingMs - recordingProgress * maxRecordingMs) / 1000),
+  );
 
   if (loading) {
     return (
@@ -82,90 +161,153 @@ const Speakup = () => {
     return (
       <SafeAreaView style={[styles.container, styles.centered]}>
         <Text style={styles.subheader}>Download a pronunciation pack first.</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={{ color: COLORS.primary }}>Go back</Text>
-        </TouchableOpacity>
+        </Pressable>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-    
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={COLORS.textPrimary} />
-        </TouchableOpacity>
+        </Pressable>
         <View>
           <Text style={styles.headerTitle}>Speak Up!</Text>
-          <Text style={styles.subheader}>Level 1 • Lesson 1</Text>
+          <Text style={styles.subheader}>Level {levelId}</Text>
         </View>
       </View>
 
       <View style={styles.content}>
-        
         <View style={styles.imageCard}>
-          <Image
-            source={{ uri: currentGame.imageUrl }}
-            style={styles.mainImage}
-            resizeMode="cover"
-          />
-          
-          <TouchableOpacity 
-            style={styles.speakerFloatingButton}
+          {currentGame.imageUrl ? (
+            <Image
+              source={{ uri: currentGame.imageUrl }}
+              style={styles.mainImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.mainImage, styles.imagePlaceholder]}>
+              <Ionicons name="image-outline" size={64} color={COLORS.muted} />
+            </View>
+          )}
+
+          <Pressable
+            style={[styles.speakerFloatingButton, isBusy && styles.disabledControl]}
             onPress={playPronunciation}
+            disabled={isBusy}
           >
             <Ionicons name="volume-high" size={30} color="#fff" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-      
         <View style={styles.wordSection}>
-          <TouchableOpacity onPress={handleWordTap}>
+          <Pressable onPress={handleWordTap}>
             <Text style={styles.wordText}>{currentGame.word}</Text>
-          </TouchableOpacity>
-          {lastScore !== null && (
-            <Text style={[
-              styles.feedbackText, 
-              { color: lastScore > 70 ? '#4ADE80' : '#FB923C' }
-            ]}>
+          </Pressable>
+          {lastScore !== null && !isBusy && (
+            <Text
+              style={[
+                styles.feedbackText,
+                { color: lastScore > 70 ? "#4ADE80" : "#FB923C" },
+              ]}
+            >
               {lastScore > 70 ? "Excellent! 🌟" : "Keep Trying! 💪"} ({lastScore}%)
             </Text>
           )}
         </View>
 
-    
         <View style={styles.actionSection}>
-          <Text style={styles.instruction}>
-            {isAnalyzing ? "Listening..." : "Tap and say the word"}
-          </Text>
-
-          <TouchableOpacity 
-            onPress={handlePress}
-            disabled={isAnalyzing}
+          <View
             style={[
-              styles.recordButton,
-              isAnalyzing&& {opacity:0.5}
+              styles.statusBanner,
+              isRecording && styles.statusBannerRecording,
+              isProcessing && styles.statusBannerProcessing,
             ]}
           >
-            <View style={styles.recordOuter}>
-              <View style={[styles.recordInner]}>
-                {isAnalyzing ? (
-                  <ActivityIndicator  color="#fff" />
-                ):(
-                <Ionicons 
-                  name="mic" 
-                  size={40} 
-                  color="#fff" 
-                />)
-                }
-              </View>
+            {isRecording && (
+              <View style={styles.recordingDot} />
+            )}
+            {isProcessing && (
+              <ActivityIndicator size="small" color={COLORS.primary} style={styles.statusSpinner} />
+            )}
+            <Text
+              style={[
+                styles.instruction,
+                isRecording && styles.instructionRecording,
+                isProcessing && styles.instructionProcessing,
+              ]}
+            >
+              {instructionText}
+            </Text>
+          </View>
+
+          {!!subInstructionText && (
+            <Text style={styles.subInstruction}>{subInstructionText}</Text>
+          )}
+
+          {isRecording && (
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, { width: `${recordingProgress * 100}%` }]}
+              />
             </View>
-          </TouchableOpacity>
-          
-          <Text style={styles.timerNote}>Records ~3 seconds then submits</Text>
+          )}
+
+          {isRecording && (
+            <Text style={styles.countdownText}>
+              {secondsLeft}s {t(language, "gameUi.speakupReleaseToSend").toLowerCase()}
+            </Text>
+          )}
+
+          <Pressable
+            onPressIn={() => void handleRecordPressIn()}
+            onPressOut={() => void handleRecordPressOut()}
+            onPress={() => {
+              if (isRecording) void handleRecordPressOut();
+            }}
+            disabled={isProcessing}
+            style={({ pressed }) => [
+              styles.recordButton,
+              isRecording && styles.recordButtonActive,
+              isProcessing && styles.recordButtonDisabled,
+              pressed && !isProcessing && styles.recordButtonPressed,
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.recordOuter,
+                isRecording && styles.recordOuterActive,
+                { transform: [{ scale: isRecording ? pulseAnim : 1 }] },
+              ]}
+            >
+              <View style={styles.recordInner}>
+                {isProcessing ? (
+                  <ActivityIndicator color="#fff" size="large" />
+                ) : (
+                  <Ionicons
+                    name={isRecording ? "mic" : "mic-outline"}
+                    size={40}
+                    color="#fff"
+                  />
+                )}
+              </View>
+            </Animated.View>
+          </Pressable>
+
+          {isRecording && (
+            <Pressable
+              onPress={() => void cancelRecording()}
+              style={styles.cancelLink}
+            >
+              <Text style={styles.cancelLinkText}>Cancel</Text>
+            </Pressable>
+          )}
         </View>
       </View>
+
       <WordDetailSheet
         isVisible={!!selectedWord}
         onClose={() => {
@@ -193,19 +335,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 15,
-    marginTop:50
+    marginTop: 50,
   },
   backButton: {
     width: 45,
     height: 45,
     borderRadius: 12,
     backgroundColor: COLORS.card,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 15,
   },
   headerTitle: {
@@ -221,24 +363,29 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    justifyContent: 'space-around',
+    justifyContent: "space-around",
     paddingBottom: 40,
   },
   imageCard: {
     backgroundColor: COLORS.card,
     borderRadius: 30,
-    overflow: 'hidden',
+    overflow: "hidden",
     height: 300,
-    width: '100%',
-    position: 'relative',
+    width: "100%",
+    position: "relative",
     elevation: 5,
   },
   mainImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
+  },
+  imagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.card,
   },
   speakerFloatingButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 20,
     right: 20,
     backgroundColor: COLORS.primary,
@@ -249,8 +396,11 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
+  disabledControl: {
+    opacity: 0.5,
+  },
   wordSection: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   wordText: {
     fontSize: 48,
@@ -261,56 +411,130 @@ const styles = StyleSheet.create({
   feedbackText: {
     fontSize: 20,
     fontFamily: FONTS.medium,
-    color: '#4ADE80',
     marginTop: 10,
   },
   actionSection: {
-    alignItems: 'center',
+    alignItems: "center",
+    width: "100%",
+  },
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    marginBottom: 8,
+    minHeight: 44,
+    width: "100%",
+  },
+  statusBannerRecording: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.45)",
+  },
+  statusBannerProcessing: {
+    backgroundColor: "rgba(61, 92, 255, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(61, 92, 255, 0.35)",
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EF4444",
+    marginRight: 8,
+  },
+  statusSpinner: {
+    marginRight: 8,
   },
   instruction: {
     color: COLORS.textSecondary,
-    marginBottom: 20,
     fontSize: 16,
     fontFamily: FONTS.medium,
+    textAlign: "center",
+    flexShrink: 1,
+  },
+  instructionRecording: {
+    color: "#EF4444",
+    fontFamily: FONTS.bold,
+  },
+  instructionProcessing: {
+    color: COLORS.primary,
+  },
+  subInstruction: {
+    color: COLORS.muted,
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  progressTrack: {
+    width: "80%",
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#EF4444",
+    borderRadius: 3,
+  },
+  countdownText: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    marginBottom: 12,
   },
   recordButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(61, 92, 255, 0.2)', // Primary with transparency
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "rgba(61, 92, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  recordingActive: {
-    backgroundColor: 'rgba(255, 107, 107, 0.2)',
+  recordButtonPressed: {
+    opacity: 0.9,
+  },
+  recordButtonActive: {
+    backgroundColor: "rgba(239, 68, 68, 0.25)",
+  },
+  recordButtonDisabled: {
+    opacity: 0.55,
   },
   recordOuter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recordOuterActive: {
+    backgroundColor: "#EF4444",
   },
   recordInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: "rgba(255,255,255,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  innerSquare: {
-    backgroundColor: COLORS.danger,
-    borderRadius: 12,
+  cancelLink: {
+    marginTop: 14,
+    padding: 8,
   },
-  timerNote: {
+  cancelLinkText: {
     color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 15,
+    fontSize: 14,
     fontFamily: FONTS.medium,
-  }
+  },
 });
 
 export default Speakup;

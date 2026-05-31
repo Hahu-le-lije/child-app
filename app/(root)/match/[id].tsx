@@ -18,12 +18,21 @@ type MatchItem = {
   is_correct?: number;
 };
 
+type VoiceQuizQuestion = {
+  id: string;
+  audio_url: string;
+  choices: string[];
+  correct_word: string;
+};
+
 const MatchLevel = () => {
   const { id } = useLocalSearchParams();
   const levelId = String(id);
   const language = useLanguageStore((state) => state.language);
 
+  const [mode, setMode] = useState<"matching" | "voice_quiz">("matching");
   const [rows, setRows] = useState<MatchItem[]>([]);
+  const [voiceQuestions, setVoiceQuestions] = useState<VoiceQuizQuestion[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [round, setRound] = useState(0);
@@ -35,8 +44,31 @@ const MatchLevel = () => {
 
   useEffect(() => {
     (async () => {
-      const data = (await getGameContent("matching", levelId)) as any[];
-      setRows((data || []) as MatchItem[]);
+      const matchingData = (await getGameContent("matching", levelId)) as MatchItem[];
+      if (Array.isArray(matchingData) && matchingData.length > 0) {
+        setMode("matching");
+        setRows(matchingData);
+        setVoiceQuestions([]);
+      } else {
+        const voiceData = (await getGameContent("voice", levelId)) as Array<{
+          id: string;
+          audio_url?: string;
+          choices?: string[];
+          correct_word?: string;
+        }>;
+        const questions: VoiceQuizQuestion[] = (voiceData ?? [])
+          .filter((row) => row.audio_url && Array.isArray(row.choices))
+          .map((row) => ({
+            id: String(row.id),
+            audio_url: String(row.audio_url),
+            choices: row.choices ?? [],
+            correct_word: String(row.correct_word ?? ""),
+          }));
+        setMode("voice_quiz");
+        setVoiceQuestions(questions);
+        setRows([]);
+      }
+
       setSelected(null);
       setMessage("");
       setRound(0);
@@ -57,12 +89,26 @@ const MatchLevel = () => {
   }, [rows]);
 
   const currentPrompt = useMemo(() => {
+    if (mode === "voice_quiz") return null;
     if (words.length === 0) return null;
     if (round >= words.length) return null;
     return words[round % words.length];
-  }, [round, words]);
+  }, [mode, round, words]);
+
+  const currentVoiceQuestion = useMemo(() => {
+    if (mode !== "voice_quiz") return null;
+    if (round >= voiceQuestions.length) return null;
+    return voiceQuestions[round];
+  }, [mode, round, voiceQuestions]);
 
   const options = useMemo(() => {
+    if (mode === "voice_quiz" && currentVoiceQuestion) {
+      return currentVoiceQuestion.choices.map((label) => ({
+        key: label,
+        label,
+        correct: label === currentVoiceQuestion.correct_word,
+      }));
+    }
     if (!currentPrompt) return [];
     const others = words.filter((w) => w.id !== currentPrompt.id);
     const shuffledOthers = others.slice().sort(() => Math.random() - 0.5);
@@ -74,7 +120,10 @@ const MatchLevel = () => {
       label: w.word,
       correct: w.id === currentPrompt.id,
     }));
-  }, [currentPrompt, words]);
+  }, [currentPrompt, currentVoiceQuestion, mode, words]);
+
+  const totalQuestions =
+    mode === "voice_quiz" ? voiceQuestions.length : words.length;
 
   const handlePick = (opt: {
     key: string;
@@ -94,11 +143,13 @@ const MatchLevel = () => {
     setTimeout(() => {
       setSelected(null);
       setMessage("");
-      if (opt.correct) setRound((r) => Math.min(r + 1, words.length));
+      if (opt.correct) {
+        setRound((r) => Math.min(r + 1, totalQuestions));
+      }
     }, 1200);
   };
 
-  const isCompleted = words.length > 0 && round >= words.length;
+  const isCompleted = totalQuestions > 0 && round >= totalQuestions;
 
   React.useEffect(() => {
     if (!isCompleted || saved) return;
@@ -106,9 +157,9 @@ const MatchLevel = () => {
     void (async () => {
       const user = await getUser();
       if (!user?.id) return;
-      const maxReplays = Math.max(1, words.length * 3);
+      const maxReplays = Math.max(1, totalQuestions * 3);
       const scored = scoreVoiceMatch({
-        totalQuestions: words.length,
+        totalQuestions,
         correctAnswers,
         replayCount,
         maxReplays,
@@ -122,7 +173,7 @@ const MatchLevel = () => {
         score: scored.finalScore,
         time_spent: Math.round((Date.now() - sessionStartedAt) / 1000),
         metrics: {
-          total_questions: words.length,
+          total_questions: totalQuestions,
           correct_answers: correctAnswers,
           wrong_attempts: wrongAttempts,
           replay_count: replayCount,
@@ -133,7 +184,21 @@ const MatchLevel = () => {
         updated_at: now,
       });
     })();
-  }, [correctAnswers, isCompleted, levelId, replayCount, saved, sessionStartedAt, words.length, wrongAttempts]);
+  }, [
+    correctAnswers,
+    isCompleted,
+    levelId,
+    replayCount,
+    saved,
+    sessionStartedAt,
+    totalQuestions,
+    wrongAttempts,
+  ]);
+
+  const audioUri =
+    mode === "voice_quiz"
+      ? currentVoiceQuestion?.audio_url
+      : currentPrompt?.audio_url;
 
   return (
     <GameLayout title={t(language, "gameUi.matchTitle", { id: levelId })}>
@@ -142,7 +207,7 @@ const MatchLevel = () => {
           {t(language, "gameUi.matchHelp")}
         </Text>
         <AudioButton
-          uri={currentPrompt?.audio_url}
+          uri={audioUri}
           label={t(language, "gameUi.playSound")}
           style={{ marginBottom: 14 }}
           onPlay={() => setReplayCount((prev) => prev + 1)}
@@ -164,6 +229,11 @@ const MatchLevel = () => {
           ))}
         </View>
         {!!message && <Text style={styles.message}>{message}</Text>}
+        {isCompleted && (
+          <Text style={styles.complete}>
+            {t(language, "gameUi.levelCompleteTitle")}
+          </Text>
+        )}
       </View>
     </GameLayout>
   );
@@ -188,6 +258,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 16,
     textAlign: "center",
+  },
+  complete: {
+    color: "#86D8FF",
+    marginTop: 20,
+    fontSize: 18,
+    textAlign: "center",
+    fontFamily: "Poppins-SemiBold",
   },
   correct: {
     backgroundColor: "#1F3A2F",

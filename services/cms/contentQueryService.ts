@@ -120,8 +120,16 @@ export const getWordBuilderData = (childId: string, levelId: string) => {
   ) as Array<{ letter: string }>;
   const words = db.getAllSync(
     `SELECT * FROM words WHERE child_id = ? AND level_id = ?`,
-    [childId, levelId]
-  );
+    [childId, levelId],
+  ) as Array<Record<string, unknown>>;
+  const normalizedWords = words.map((row) => ({
+    ...row,
+    id: String(row.id ?? ""),
+    word_text: String(
+      row.word_text ?? row.word ?? row.wordtext ?? row.target_word ?? "",
+    ),
+    level_id: String(row.level_id ?? levelId),
+  }));
   const hints = db.getAllSync(
     `SELECT * FROM word_hints WHERE child_id = ? AND word_id IN (
       SELECT id FROM words WHERE child_id = ? AND level_id = ?
@@ -130,7 +138,7 @@ export const getWordBuilderData = (childId: string, levelId: string) => {
   );
   return {
     letters: letters.map((l) => l.letter),
-    words,
+    words: normalizedWords,
     hints,
   };
 };

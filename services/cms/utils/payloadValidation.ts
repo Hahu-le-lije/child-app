@@ -1,20 +1,11 @@
 import type { GameTypeKey } from "@/services/cms/gameContentService";
+import { mergePackContents } from "@/services/cms/payload/payloadHelpers";
 
 export class PackPayloadError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "PackPayloadError";
   }
-}
-
-function extractContents(payload: unknown): Record<string, unknown> {
-  if (!payload || typeof payload !== "object") return {};
-  const o = payload as Record<string, unknown>;
-  const inner = o.contents;
-  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-    return inner as Record<string, unknown>;
-  }
-  return o;
 }
 
 function hasObjectKeys(obj: unknown): obj is Record<string, unknown> {
@@ -27,7 +18,7 @@ export function validatePackPayload(game: GameTypeKey, payload: unknown): void {
     throw new PackPayloadError("Download payload is empty or not JSON object");
   }
 
-  const contents = extractContents(payload);
+  const contents = mergePackContents(payload);
   const root = payload as Record<string, unknown>;
 
   switch (game) {
@@ -128,7 +119,7 @@ export function validatePackPayload(game: GameTypeKey, payload: unknown): void {
 export function extractPayloadVersion(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const o = payload as Record<string, unknown>;
-  const contents = extractContents(payload);
+  const contents = mergePackContents(payload);
   const v = o.version ?? contents.version;
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
